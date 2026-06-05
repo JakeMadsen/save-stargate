@@ -66,15 +66,20 @@ const dayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 publicRouter.get(
   "/home",
   asyncRoute(async (_req, res) => {
-    const [latestUpdate, pinnedUpdate, petitions, contacts, resources] = await Promise.all([
+    const [latestUpdate, pinnedUpdate, petitions, contacts, resources, fanMessages] = await Promise.all([
       UpdatePost.findOne(published).sort({ publishedAt: -1, createdAt: -1 }),
       UpdatePost.findOne({ ...published, pinned: true }).sort({ publishedAt: -1, createdAt: -1 }),
       Petition.find({ status: "active" }).sort({ displayOrder: 1, currentCount: -1 }).limit(4),
       ContactTarget.find(published).sort({ priority: 1, createdAt: -1 }).limit(3),
-      ResourceLink.find(published).sort({ priority: 1, createdAt: -1 }).limit(4)
+      ResourceLink.find(published).sort({ priority: 1, createdAt: -1 }).limit(4),
+      FanMessage.aggregate([
+        { $match: { status: "visible" } },
+        { $sample: { size: 8 } },
+        { $project: { displayName: 1, message: 1, verifiedAt: 1, createdAt: 1 } }
+      ])
     ]);
 
-    res.json({ latestUpdate, pinnedUpdate, petitions, contacts, resources });
+    res.json({ latestUpdate, pinnedUpdate, petitions, contacts, resources, fanMessages });
   })
 );
 

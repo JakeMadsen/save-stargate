@@ -405,6 +405,80 @@ blockquote {
   max-width: 780px;
 }
 
+.fan-voice-band {
+  padding-top: 0;
+}
+
+.fan-voice-carousel {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 1rem;
+  align-items: center;
+  min-height: 220px;
+}
+
+.fan-voice-carousel > article {
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+}
+
+.fan-voice-carousel p {
+  max-width: 850px;
+  margin: 0 auto;
+  color: var(--text);
+  font-size: clamp(1.08rem, 1.6vw, 1.45rem);
+  line-height: 1.65;
+}
+
+.fan-voice-carousel p::before,
+.fan-voice-carousel p::after {
+  color: var(--amber);
+  font-weight: 900;
+}
+
+.fan-voice-carousel p::before {
+  content: open-quote;
+}
+
+.fan-voice-carousel p::after {
+  content: close-quote;
+}
+
+.fan-voice-carousel article div {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+
+.fan-voice-carousel article strong {
+  color: var(--text);
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.carousel-dots button {
+  width: 10px;
+  height: 10px;
+  min-height: 10px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--muted-button-bg);
+}
+
+.carousel-dots button.active {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
 .card-grid {
   display: grid;
   gap: 1rem;
@@ -669,6 +743,12 @@ blockquote {
 .comment {
   border-top: 1px solid var(--line);
   padding: 1rem 0;
+}
+
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .comment div:first-child {
@@ -1352,6 +1432,17 @@ blockquote {
   object-fit: cover;
 }
 
+.resource-target-thumb {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--muted-button-bg);
+  color: var(--teal);
+}
+
 .contact-target-thumb.logo img {
   width: 82%;
   height: auto;
@@ -1569,6 +1660,12 @@ blockquote {
   .admin-table-row,
   .admin-table.compact .admin-table-row {
     grid-template-columns: 1fr;
+  }
+
+  .fan-voice-carousel {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    gap: 0.55rem;
+    min-height: 240px;
   }
 
   .contact-target-actions {

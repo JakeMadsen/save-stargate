@@ -5,7 +5,7 @@ export const userStatuses = ["pending", "invited", "active", "banned"] as const;
 export const contentStatuses = ["draft", "published", "archived"] as const;
 export const petitionStatuses = ["active", "won", "paused", "archived"] as const;
 export const commentStatuses = ["visible", "hidden", "deleted"] as const;
-export const resourceTypes = ["youtube", "website", "podcast", "social", "press", "other"] as const;
+export const resourceTypes = ["creator", "youtube", "website", "podcast", "social", "press", "community", "other"] as const;
 export const contactKinds = ["entity", "person"] as const;
 export const contactLinkTypes = [
   "website",
@@ -230,11 +230,23 @@ export const trafficEventSchema = z.object({
 export const resourceLinkSchema = z.object({
   title: z.string().trim().min(2).max(140),
   type: z.enum(resourceTypes).default("other"),
-  url: z.string().trim().url(),
+  url: optionalUrlSchema.or(z.literal("")),
   description: z.string().trim().min(5).max(600),
   priority: z.coerce.number().int().min(1).max(10).default(5),
+  links: z
+    .array(
+      z.object({
+        label: z.string().trim().min(2).max(80),
+        type: z.enum(contactLinkTypes).default("other"),
+        url: contactUrlSchema
+      })
+    )
+    .default([]),
   tags: z.array(z.string().trim().min(1).max(30)).default([]),
   status: z.enum(contentStatuses).default("published")
+}).refine((value) => Boolean(value.url || value.links.length), {
+  message: "Add at least one resource link",
+  path: ["links"]
 });
 
 export type Role = (typeof roles)[number];

@@ -49,13 +49,15 @@ export const SignupPage = () => {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [devLink, setDevLink] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setMessage("");
     setDevLink("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const password = String(form.get("password") ?? "");
     const confirmPassword = String(form.get("confirmPassword") ?? "");
 
@@ -65,6 +67,7 @@ export const SignupPage = () => {
     }
 
     try {
+      setSubmitting(true);
       const result = await postJson<{ message?: string; verificationLink?: string }>("/api/auth/signup", {
         email: form.get("email"),
         displayName: form.get("displayName"),
@@ -72,9 +75,11 @@ export const SignupPage = () => {
       });
       setMessage(result.message ?? "Check your email for a verification link.");
       setDevLink(result.verificationLink ?? "");
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -89,7 +94,7 @@ export const SignupPage = () => {
           <input name="email" type="email" required placeholder="you@example.com" />
           <input name="password" type="password" required minLength={6} placeholder="Password" />
           <input name="confirmPassword" type="password" required minLength={6} placeholder="Confirm password" />
-          <button type="submit">Create account</button>
+          <button type="submit" disabled={submitting}>{submitting ? "Creating account..." : "Create account"}</button>
         </form>
         {message && <p className="notice success">{message}</p>}
         {devLink && <p className="notice">Development verify link: <a href={devLink}>{devLink}</a></p>}

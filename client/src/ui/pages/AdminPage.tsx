@@ -694,6 +694,247 @@ const ContactTargetsPanel = () => {
   );
 };
 
+type ResourceFormValues = {
+  title: string;
+  type: "creator" | "youtube" | "website" | "podcast" | "social" | "press" | "community" | "other";
+  url: string;
+  description: string;
+  priority: number;
+  tags: string;
+  links: ContactLink[];
+  status: "draft" | "published" | "archived";
+};
+
+const resourceDefaults: ResourceFormValues = {
+  title: "",
+  type: "creator",
+  url: "",
+  description: "",
+  priority: 5,
+  tags: "",
+  links: [],
+  status: "published"
+};
+
+const ResourcesPanel = () => {
+  const [items, setItems] = useState<AdminItem[]>([]);
+  const [editing, setEditing] = useState<AdminItem | null>(null);
+  const [values, setValues] = useState<ResourceFormValues>(resourceDefaults);
+  const [newLinkType, setNewLinkType] = useState<ContactLinkType>("website");
+  const [error, setError] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const load = () => api<{ items: AdminItem[] }>("/api/admin/resources").then((data) => setItems(data.items));
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const change = <Key extends keyof ResourceFormValues>(key: Key, value: ResourceFormValues[Key]) => {
+    setValues((current) => ({ ...current, [key]: value }));
+  };
+
+  const resetForm = () => {
+    setEditing(null);
+    setValues(resourceDefaults);
+    setError("");
+  };
+
+  const startEdit = (item: AdminItem) => {
+    setEditing(item);
+    setValues({
+      ...resourceDefaults,
+      ...item,
+      tags: Array.isArray(item.tags) ? item.tags.join(", ") : item.tags ?? "",
+      links: Array.isArray(item.links) ? item.links : []
+    });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const addResourceLink = () => {
+    const option = contactLinkOptions.find((item) => item.type === newLinkType) ?? contactLinkOptions[0];
+    change("links", [...values.links, { type: option.type, label: option.defaultLabel, url: "" }]);
+  };
+
+  const updateResourceLink = (index: number, patch: Partial<ContactLink>) => {
+    change(
+      "links",
+      values.links.map((link, currentIndex) => (currentIndex === index ? { ...link, ...patch } : link))
+    );
+  };
+
+  const removeResourceLink = (index: number) => {
+    change("links", values.links.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    const payload = {
+      ...values,
+      tags: values.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      links: values.links.filter((link) => link.label.trim() && link.url.trim()),
+      priority: Number(values.priority)
+    };
+
+    try {
+      if (editing) await putJson(`/api/admin/resources/${editing._id}`, payload);
+      else await postJson("/api/admin/resources", payload);
+      resetForm();
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    }
+  };
+
+  const remove = async (id: string) => {
+    await deleteJson(`/api/admin/resources/${id}`);
+    if (editing?._id === id) resetForm();
+    await load();
+  };
+
+  const linksFor = (item: AdminItem): ContactLink[] => {
+    if (Array.isArray(item.links) && item.links.length) return item.links;
+    if (item.url) return [{ label: "Visit", type: item.type === "youtube" ? "youtube" : "website", url: item.url }];
+    return [];
+  };
+
+  return (
+    <section className="contact-admin-panel resource-admin-panel">
+      <div className="section-heading contact-admin-heading">
+        <span>Resource links</span>
+        <button type="button" className="secondary-button" onClick={resetForm}>
+          <Plus size={16} /> New resource
+        </button>
+      </div>
+
+      <div className="admin-list contact-target-list">
+        {items.map((item) => (
+          <article className="card compact-card contact-target-row" key={item._id}>
+            <div className="contact-target-summary">
+              <div className="resource-target-thumb">
+                <ExternalLink size={20} />
+              </div>
+              <div>
+                <div className="card-kicker">{item.type ?? "resource"} · priority {item.priority ?? 5}</div>
+                <strong>{item.title}</strong>
+                <span>{item.description}</span>
+                <div className="admin-contact-links">
+                  {linksFor(item).map((link) => (
+                    <a className="admin-contact-link" href={link.url} target="_blank" rel="noreferrer" key={`${item._id}-${link.type}-${link.url}`}>
+                      <ContactLinkIcon type={link.type} />
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="button-row contact-target-actions">
+              <button className="icon-button" type="button" onClick={() => startEdit(item)} title="Edit">
+                <Edit3 size={16} />
+              </button>
+              <button className="icon-button danger" type="button" onClick={() => remove(item._id)} title="Delete">
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </article>
+        ))}
+        {items.length === 0 && <p className="empty">No resources yet.</p>}
+      </div>
+
+      <form className="card admin-form contact-admin-form" ref={formRef} onSubmit={submit}>
+        <div className="section-heading">
+          <span>{editing ? `Edit ${editing.title}` : "Create Resource"}</span>
+          {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
+        </div>
+
+        <div className="contact-form-grid">
+          <label>
+            <span>Title</span>
+            <input value={values.title} onChange={(event) => change("title", event.target.value)} required />
+          </label>
+          <label>
+            <span>Type</span>
+            <select value={values.type} onChange={(event) => change("type", event.target.value as ResourceFormValues["type"])}>
+              <option value="creator">Creator</option>
+              <option value="youtube">YouTube</option>
+              <option value="website">Website</option>
+              <option value="podcast">Podcast</option>
+              <option value="social">Social</option>
+              <option value="press">Press</option>
+              <option value="community">Community</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            <span>Primary link</span>
+            <input value={values.url} onChange={(event) => change("url", event.target.value)} placeholder="Optional fallback link" />
+          </label>
+          <label>
+            <span>Priority</span>
+            <input type="number" min={1} max={10} value={values.priority} onChange={(event) => change("priority", Number(event.target.value))} />
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={values.status} onChange={(event) => change("status", event.target.value as ResourceFormValues["status"])}>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <label>
+            <span>Tags</span>
+            <input value={values.tags} onChange={(event) => change("tags", event.target.value)} placeholder="creator, interview, podcast" />
+          </label>
+        </div>
+
+        <label>
+          <span>Description</span>
+          <textarea value={values.description} onChange={(event) => change("description", event.target.value)} required />
+        </label>
+
+        <div className="contact-options-editor">
+          <div className="section-heading">
+            <span>Resource links</span>
+            <div className="add-contact-option">
+              <select value={newLinkType} onChange={(event) => setNewLinkType(event.target.value as ContactLinkType)}>
+                {contactLinkOptions.map((option) => (
+                  <option key={option.type} value={option.type}>{option.label}</option>
+                ))}
+              </select>
+              <button type="button" className="secondary-button" onClick={addResourceLink}>
+                <Plus size={16} /> Add resource link
+              </button>
+            </div>
+          </div>
+
+          <div className="contact-option-list">
+            {values.links.map((link, index) => (
+              <div className="contact-option-row" key={`${link.type}-${index}`}>
+                <ContactLinkIcon type={link.type} />
+                <select value={link.type} onChange={(event) => updateResourceLink(index, { type: event.target.value as ContactLinkType })}>
+                  {contactLinkOptions.map((option) => (
+                    <option key={option.type} value={option.type}>{option.label}</option>
+                  ))}
+                </select>
+                <input value={link.label} onChange={(event) => updateResourceLink(index, { label: event.target.value })} placeholder="Label" />
+                <input value={link.url} onChange={(event) => updateResourceLink(index, { url: event.target.value })} placeholder="https://..." />
+                <button className="icon-button danger" type="button" onClick={() => removeResourceLink(index)} title="Remove resource link">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            {values.links.length === 0 && <p className="empty">No resource links yet.</p>}
+          </div>
+        </div>
+
+        <button type="submit"><Plus size={16} /> {editing ? "Save resource" : "Create resource"}</button>
+        {error && <p className="error">{error}</p>}
+      </form>
+    </section>
+  );
+};
+
 const Dashboard = () => {
   const [data, setData] = useState<Record<string, any> | null>(null);
 
@@ -1290,7 +1531,8 @@ export const AdminPage = () => {
       </div>
       {tab === "dashboard" && <Dashboard />}
       {tab === "contacts" && <ContactTargetsPanel />}
-      {currentResource && tab !== "contacts" && <CrudPanel resource={currentResource} />}
+      {tab === "resources" && <ResourcesPanel />}
+      {currentResource && tab !== "contacts" && tab !== "resources" && <CrudPanel resource={currentResource} />}
       {tab === "moderation" && <Moderation />}
       {tab === "fan-messages" && <FanMessages />}
       {tab === "traffic" && <Traffic />}

@@ -1,4 +1,4 @@
-import { ArrowRight, Mail, Megaphone, Target, Users } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Heart, Mail, Megaphone, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api.js";
@@ -11,9 +11,70 @@ type HomeData = {
   petitions: Petition[];
   contacts: Array<{ _id: string; name: string; kind?: "entity" | "person"; organization: string; role: string; publicContactUrl: string; imageUrl?: string }>;
   resources: Array<{ _id: string; title: string; type: string; url: string }>;
+  fanMessages?: Array<{ _id: string; displayName?: string; message: string; verifiedAt?: string; createdAt: string }>;
 };
 
 const contactAnchor = (contact: { _id: string }) => `/contacts#contact-${contact._id}`;
+
+const FanVoiceCarousel = ({ messages }: { messages: NonNullable<HomeData["fanMessages"]> }) => {
+  const [index, setIndex] = useState(0);
+  const current = messages[index];
+
+  useEffect(() => {
+    setIndex(0);
+  }, [messages]);
+
+  useEffect(() => {
+    if (messages.length < 2) return;
+    const interval = window.setInterval(() => {
+      setIndex((currentIndex) => (currentIndex + 1) % messages.length);
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, [messages.length]);
+
+  if (!current) return null;
+
+  const move = (direction: number) => {
+    setIndex((currentIndex) => (currentIndex + direction + messages.length) % messages.length);
+  };
+
+  return (
+    <section className="content-band fan-voice-band">
+      <div className="section-heading">
+        <span><Heart size={17} /> Fan voices</span>
+        <Link to="/fan-messages">Read more</Link>
+      </div>
+      <div className="card fan-voice-carousel">
+        <button type="button" className="icon-button" onClick={() => move(-1)} disabled={messages.length < 2} title="Previous fan voice">
+          <ChevronLeft size={18} />
+        </button>
+        <article>
+          <p>{current.message}</p>
+          <div>
+            <strong>{current.displayName || "A Stargate fan"}</strong>
+            <span>{new Date(current.verifiedAt || current.createdAt).toLocaleDateString()}</span>
+          </div>
+        </article>
+        <button type="button" className="icon-button" onClick={() => move(1)} disabled={messages.length < 2} title="Next fan voice">
+          <ChevronRight size={18} />
+        </button>
+      </div>
+      {messages.length > 1 && (
+        <div className="carousel-dots" aria-label="Fan voice slides">
+          {messages.map((message, dotIndex) => (
+            <button
+              key={message._id}
+              type="button"
+              className={dotIndex === index ? "active" : ""}
+              onClick={() => setIndex(dotIndex)}
+              aria-label={`Show fan voice ${dotIndex + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
 
 export const HomePage = () => {
   const [data, setData] = useState<HomeData | null>(null);
@@ -116,6 +177,8 @@ export const HomePage = () => {
           ))}
         </div>
       </section>
+
+      {(data?.fanMessages?.length ?? 0) > 0 && <FanVoiceCarousel messages={data!.fanMessages!} />}
     </>
   );
 };

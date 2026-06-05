@@ -49,7 +49,8 @@ export const FanMessagesPage = () => {
     event.preventDefault();
     setError("");
     setNotice("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
 
     try {
       const result = await postJson<{ published: boolean; verificationLink?: string }>("/api/public/fan-messages", {
@@ -58,7 +59,7 @@ export const FanMessagesPage = () => {
         message: form.get("message"),
         website: form.get("website")
       });
-      event.currentTarget.reset();
+      formElement.reset();
       if (result.published) {
         setNotice("Your message is live. Thank you for adding your voice.");
         await load();

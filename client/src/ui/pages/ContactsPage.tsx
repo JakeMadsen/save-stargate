@@ -144,7 +144,8 @@ const SuggestionForm = ({
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       await postJson("/api/public/contact-suggestions", {
         contactTargetId: contactId || undefined,
@@ -158,7 +159,7 @@ const SuggestionForm = ({
         notes: form.get("notes")
       });
       setSent(true);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit suggestion");
     }

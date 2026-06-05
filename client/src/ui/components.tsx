@@ -1,7 +1,8 @@
 import { AlertCircle, CheckCircle2, ExternalLink, Flag, MessageSquare } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { postJson } from "../api.js";
-import { useAuth } from "./AuthContext.js";
+import { patchJson, postJson } from "../api.js";
+import { isStaff, useAuth } from "./AuthContext.js";
 
 export type Petition = {
   _id: string;
@@ -168,22 +169,49 @@ export const CommentThread = ({
   parentType: "update" | "topic";
   parentId: string;
   comments: Comment[];
-  onChange: () => void;
+  onChange: () => void | Promise<void>;
 }) => {
   const { user } = useAuth();
+  const [posting, setPosting] = useState(false);
+  const [error, setError] = useState("");
+  const canModerate = isStaff(user?.role);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const body = String(form.get("body") ?? "");
-    await postJson("/api/public/comments", { parentType, parentId, body });
-    event.currentTarget.reset();
-    onChange();
+    setPosting(true);
+    setError("");
+    try {
+      await postJson("/api/public/comments", { parentType, parentId, body });
+      formElement.reset();
+      await onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not post comment");
+    } finally {
+      setPosting(false);
+    }
   };
 
   const report = async (id: string) => {
-    await postJson(`/api/public/comments/${id}/report`, { reason: "Needs moderator review" });
-    onChange();
+    setError("");
+    try {
+      await postJson(`/api/public/comments/${id}/report`, { reason: "Needs moderator review" });
+      await onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not report comment");
+    }
+  };
+
+  const deleteComment = async (id: string) => {
+    setError("");
+    try {
+      await patchJson(`/api/admin/moderation/comments/${id}`, { status: "deleted" });
+      await onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete comment");
+    }
   };
 
   return (
@@ -192,13 +220,14 @@ export const CommentThread = ({
       {user ? (
         <form className="comment-form" onSubmit={submit}>
           <textarea name="body" required minLength={2} maxLength={2500} placeholder="Write a comment..." />
-          <button type="submit">Post comment</button>
+          <button type="submit" disabled={posting}>{posting ? "Posting..." : "Post comment"}</button>
         </form>
       ) : (
         <p className="notice">
           <AlertCircle size={16} /> <Link to="/login">Log in</Link> or <Link to="/signup">sign up</Link> to comment.
         </p>
       )}
+      {error && <p className="error">{error}</p>}
       <div className="comment-list">
         {comments.map((comment) => (
           <article className="comment" key={comment._id}>
@@ -208,9 +237,16 @@ export const CommentThread = ({
             </div>
             <p>{comment.body}</p>
             {user && (
-              <button type="button" className="ghost-button" onClick={() => report(comment._id)}>
-                <Flag size={14} /> Report
-              </button>
+              <div className="comment-actions">
+                <button type="button" className="ghost-button" onClick={() => report(comment._id)}>
+                  <Flag size={14} /> Report
+                </button>
+                {canModerate && (
+                  <button type="button" className="ghost-button danger" onClick={() => deleteComment(comment._id)}>
+                    Delete
+                  </button>
+                )}
+              </div>
             )}
           </article>
         ))}

@@ -9,7 +9,8 @@ export const WriteUsPage = () => {
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
 
     try {
       await postJson("/api/public/contact-messages", {
@@ -21,7 +22,7 @@ export const WriteUsPage = () => {
         website: form.get("website")
       });
       setSent(true);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send message");
     }
