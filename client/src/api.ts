@@ -27,6 +27,18 @@ export const postJson = <T>(path: string, body: unknown) =>
     body: JSON.stringify(body)
   });
 
+export const postForm = async <T>(path: string, body: FormData): Promise<T> => {
+  const response = await fetch(path, {
+    method: "POST",
+    credentials: "include",
+    body
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error ?? "Request failed");
+  return payload as T;
+};
+
 export const putJson = <T>(path: string, body: unknown) =>
   api<T>(path, {
     method: "PUT",
@@ -40,4 +52,3 @@ export const patchJson = <T>(path: string, body: unknown) =>
   });
 
 export const deleteJson = <T>(path: string) => api<T>(path, { method: "DELETE" });
-

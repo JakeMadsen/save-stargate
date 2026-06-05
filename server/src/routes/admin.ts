@@ -1,4 +1,8 @@
-import { Router } from "express";
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import multer from "multer";
 import type { Model } from "mongoose";
 import {
   communityTopicSchema,
@@ -34,6 +38,53 @@ export const adminRouter = Router();
 adminRouter.use(requireAuth, requireRole("moderator"));
 
 const makeSlug = (body: { title?: string; slug?: string }) => body.slug || slugify(body.title ?? "");
+const contactUploadsDir = path.resolve(process.cwd(), "uploads", "contacts");
+const contactImageTypes = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/webp", ".webp"],
+  ["image/gif", ".gif"]
+]);
+const contactImageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
+const getContactImageExtension = (file: Express.Multer.File) => {
+  const extension = path.extname(file.originalname).toLowerCase();
+  return contactImageTypes.get(file.mimetype) ?? (contactImageExtensions.has(extension) ? extension.replace(".jpeg", ".jpg") : "");
+};
+const contactImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, callback) => {
+      mkdirSync(contactUploadsDir, { recursive: true });
+      callback(null, contactUploadsDir);
+    },
+    filename: (_req, file, callback) => {
+      const extension = getContactImageExtension(file);
+      callback(null, `${Date.now()}-${randomUUID()}${extension}`);
+    }
+  }),
+  limits: { fileSize: 4 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (!getContactImageExtension(file)) {
+      callback(new Error("Use a JPG, PNG, WebP, or GIF image."));
+      return;
+    }
+    callback(null, true);
+  }
+});
+const uploadContactImageMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  contactImageUpload.single("image")(req, res, (error: unknown) => {
+    if (!error) {
+      next();
+      return;
+    }
+    const message =
+      error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE"
+        ? "Image must be 4MB or smaller."
+        : error instanceof Error
+          ? error.message
+          : "Image upload failed";
+    res.status(400).json({ error: message });
+  });
+};
 
 const crudRoutes = (options: {
   path: string;
@@ -112,6 +163,18 @@ adminRouter.get(
     ]);
     const pendingContactSuggestions = await ContactSuggestion.countDocuments({ status: "pending" });
     res.json({ petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, pendingContactSuggestions });
+  })
+);
+
+adminRouter.post(
+  "/uploads/contact-image",
+  requireRole("admin"),
+  uploadContactImageMiddleware,
+  asyncRoute(async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "Image is required" });
+    const imageUrl = `/uploads/contacts/${req.file.filename}`;
+    await audit(req, "upload-contact-image", "contact-image", undefined, { fileName: req.file.filename, imageUrl });
+    res.status(201).json({ imageUrl, fileName: req.file.filename });
   })
 );
 

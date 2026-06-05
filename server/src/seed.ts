@@ -38,7 +38,7 @@ await ContactTarget.updateOne(
     address: "MGM Studios, 245 N Beverly Dr., Beverly Hills, CA 90210",
     publicContactUrl: "https://www.mgm.com/",
     sourceUrl: "https://www.mgm.com/",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Amazon_MGM_Studios.svg/960px-Amazon_MGM_Studios.svg.png",
+    imageUrl: "/uploads/contacts/amazon-mgm-studios-logo.png",
     imageSourceUrl: "https://en.wikipedia.org/wiki/Amazon_MGM_Studios",
     links: [
       { label: "MGM website", type: "website", url: "https://www.mgm.com/" },
@@ -67,7 +67,7 @@ await ContactTarget.updateOne(
     role: "Parent company",
     publicContactUrl: "https://www.amazon.com/",
     sourceUrl: "https://www.amazon.com/",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/960px-Amazon_logo.svg.png",
+    imageUrl: "/uploads/contacts/amazon-logo.png",
     imageSourceUrl: "https://en.wikipedia.org/wiki/Amazon_(company)",
     links: [
       { label: "Amazon website", type: "website", url: "https://www.amazon.com/" },
@@ -92,7 +92,7 @@ await ContactTarget.updateOne(
     role: "Head of Global Television",
     publicContactUrl: "https://www.linkedin.com/in/pfriedlander/",
     sourceUrl: "https://www.linkedin.com/in/pfriedlander/",
-    imageUrl: "https://i0.wp.com/www.thewrap.com/wp-content/uploads/2025/09/Peter-Friedlander.jpeg?fit=990%2C557&quality=89&ssl=1",
+    imageUrl: "/uploads/contacts/peter-friedlander.jpg",
     imageSourceUrl: "https://www.thewrap.com/amazon-mgm-studios-scripted-team-restructuring/",
     links: [{ label: "LinkedIn", type: "linkedin", url: "https://www.linkedin.com/in/pfriedlander/" }],
     priority: 2,
@@ -112,7 +112,7 @@ await ContactTarget.updateOne(
     role: "Head, Worldbuilding Series",
     publicContactUrl: "mailto:blair.fetter@amazonstudios.com",
     sourceUrl: "https://www.linkedin.com/in/blair-fetter-ba7aa250/",
-    imageUrl: "https://i0.wp.com/www.thewrap.com/wp-content/uploads/2026/01/Robert-OkineGetty-Images-2026-01-26T094016.427.jpg?quality=89&resize=1024%2C576&ssl=1",
+    imageUrl: "/uploads/contacts/blair-fetter.jpg",
     imageSourceUrl: "https://www.thewrap.com/industry-news/business/amazon-mgm-studios-scripted-team-restructuring/",
     links: [
       { label: "LinkedIn", type: "linkedin", url: "https://www.linkedin.com/in/blair-fetter-ba7aa250/" },
@@ -139,7 +139,7 @@ await ContactTarget.updateOne(
     role: "Head of Prime Video & Amazon MGM Studios",
     publicContactUrl: "mailto:mike.hopkins@amazonstudios.com",
     sourceUrl: "https://www.linkedin.com/in/mike-hopkins-543a214/",
-    imageUrl: "https://observer.com/wp-content/uploads/sites/2/2024/01/GettyImages-1337350235-e1704917170830.jpg?quality=80&w=970",
+    imageUrl: "/uploads/contacts/mike-hopkins.jpg",
     imageSourceUrl: "https://observer.com/2024/01/amazon-prime-video-mgm-studio-layoff/",
     links: [
       { label: "LinkedIn", type: "linkedin", url: "https://www.linkedin.com/in/mike-hopkins-543a214/" },

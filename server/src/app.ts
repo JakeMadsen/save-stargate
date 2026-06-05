@@ -42,6 +42,9 @@ export const createApp = () => {
   );
   app.use(attachUser);
 
+  const uploadsDir = path.resolve(process.cwd(), "uploads");
+  app.use("/uploads", express.static(uploadsDir));
+
   app.use("/api/auth", authRouter);
   app.use("/api/public", publicRouter);
   app.use("/api/admin", adminRouter);

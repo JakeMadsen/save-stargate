@@ -37,6 +37,18 @@ export const contactUrlSchema = z.string().trim().refine((value) => {
     return false;
   }
 }, "Expected https:// or mailto: link");
+export const contactImageUrlSchema = z
+  .string()
+  .trim()
+  .refine((value) => {
+    if (/^\/uploads\/contacts\/[A-Za-z0-9._-]+$/.test(value)) return true;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Expected uploaded contact image path or https:// image link");
 
 export const loginRequestSchema = z.object({
   email: emailSchema,
@@ -93,7 +105,7 @@ export const contactTargetSchema = z.object({
   address: z.string().trim().max(500).optional().or(z.literal("")),
   publicContactUrl: contactUrlSchema.optional().or(z.literal("")),
   sourceUrl: contactUrlSchema.optional().or(z.literal("")),
-  imageUrl: contactUrlSchema.optional().or(z.literal("")),
+  imageUrl: contactImageUrlSchema.optional().or(z.literal("")),
   imageSourceUrl: contactUrlSchema.optional().or(z.literal("")),
   links: z
     .array(

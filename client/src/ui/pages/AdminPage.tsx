@@ -17,11 +17,12 @@ import {
   ShieldCheck,
   Trash2,
   Twitter,
+  Upload,
   UserPlus,
   Youtube
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { api, deleteJson, patchJson, postJson, putJson } from "../../api.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, deleteJson, patchJson, postForm, postJson, putJson } from "../../api.js";
 import { isStaff, useAuth } from "../AuthContext.js";
 
 type AdminItem = Record<string, any> & { _id: string };
@@ -375,6 +376,9 @@ const ContactTargetsPanel = () => {
   const [values, setValues] = useState<ContactFormValues>(contactDefaults);
   const [newLinkType, setNewLinkType] = useState<ContactLinkType>("website");
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const load = () => api<{ items: AdminItem[] }>("/api/admin/contacts").then((data) => setItems(data.items));
 
@@ -391,6 +395,16 @@ const ContactTargetsPanel = () => {
     setValues(contactDefaults);
     setNewLinkType("website");
     setError("");
+    setUploadError("");
+  };
+
+  const scrollToEditor = () => {
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const createNew = () => {
+    resetForm();
+    scrollToEditor();
   };
 
   const startEdit = (item: AdminItem) => {
@@ -403,6 +417,7 @@ const ContactTargetsPanel = () => {
       priority: Number(item.priority ?? 3),
       status: item.status ?? "published"
     });
+    scrollToEditor();
   };
 
   const addContactOption = () => {
@@ -420,6 +435,24 @@ const ContactTargetsPanel = () => {
 
   const removeContactOption = (index: number) => {
     change("links", values.links.filter((_link, currentIndex) => currentIndex !== index));
+  };
+
+  const uploadContactImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadError("");
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const result = await postForm<{ imageUrl: string }>("/api/admin/uploads/contact-image", formData);
+      change("imageUrl", result.imageUrl);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -455,28 +488,41 @@ const ContactTargetsPanel = () => {
 
   return (
     <section className="contact-admin-panel">
+      <div className="section-heading contact-admin-heading">
+        <span>Contact targets</span>
+        <button type="button" className="secondary-button" onClick={createNew}>
+          <Plus size={16} /> New contact
+        </button>
+      </div>
       <div className="admin-list contact-target-list">
         {items.map((item) => (
           <article className="card compact-card contact-target-row" key={item._id}>
-            <div>
-              <div className="card-kicker">
-                {item.kind === "entity" ? <Building2 size={15} /> : <BriefcaseBusiness size={15} />}
-                {item.kind ?? "person"} · priority {item.priority ?? 3}
-              </div>
-              <strong>{item.name}</strong>
-              <span>{item.role || item.organization || item.status}</span>
-              {Array.isArray(item.links) && item.links.length > 0 && (
-                <div className="admin-contact-links">
-                  {item.links.map((link: ContactLink) => (
-                    <a className="admin-contact-link" href={link.url} target="_blank" rel="noreferrer" key={`${item._id}-${link.type}-${link.url}`}>
-                      <ContactLinkIcon type={link.type} />
-                      {link.label}
-                    </a>
-                  ))}
+            <div className="contact-target-summary">
+              {item.imageUrl && (
+                <div className={`contact-target-thumb ${item.kind === "entity" ? "logo" : ""}`}>
+                  <img src={item.imageUrl} alt="" loading="lazy" />
                 </div>
               )}
+              <div>
+                <div className="card-kicker">
+                  {item.kind === "entity" ? <Building2 size={15} /> : <BriefcaseBusiness size={15} />}
+                  {item.kind ?? "person"} · priority {item.priority ?? 3}
+                </div>
+                <strong>{item.name}</strong>
+                <span>{item.role || item.organization || item.status}</span>
+                {Array.isArray(item.links) && item.links.length > 0 && (
+                  <div className="admin-contact-links">
+                    {item.links.map((link: ContactLink) => (
+                      <a className="admin-contact-link" href={link.url} target="_blank" rel="noreferrer" key={`${item._id}-${link.type}-${link.url}`}>
+                        <ContactLinkIcon type={link.type} />
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="button-row">
+            <div className="button-row contact-target-actions">
               <button className="icon-button" type="button" onClick={() => startEdit(item)} title="Edit">
                 <Edit3 size={16} />
               </button>
@@ -488,7 +534,7 @@ const ContactTargetsPanel = () => {
         ))}
       </div>
 
-      <form className="card admin-form contact-admin-form" onSubmit={submit}>
+      <form className="card admin-form contact-admin-form" ref={formRef} onSubmit={submit}>
         <div className="section-heading">
           <span>{editing ? `Edit ${editing.name}` : "Create Contact Target"}</span>
           {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
@@ -526,10 +572,31 @@ const ContactTargetsPanel = () => {
             <span>Source link</span>
             <input value={values.sourceUrl} onChange={(event) => change("sourceUrl", event.target.value)} placeholder="https://..." />
           </label>
-          <label>
-            <span>Image URL</span>
-            <input value={values.imageUrl} onChange={(event) => change("imageUrl", event.target.value)} placeholder="https://..." />
-          </label>
+          <div className="contact-image-field">
+            <span>Image</span>
+            <div className="contact-image-upload">
+              {values.imageUrl && (
+                <div className="contact-image-current">
+                  <div className={`contact-target-thumb ${values.kind === "entity" ? "logo" : ""}`}>
+                    <img src={values.imageUrl} alt="" />
+                  </div>
+                  <div>
+                    <strong>Stored file</strong>
+                    <span>{values.imageUrl}</span>
+                  </div>
+                  <button className="icon-button danger" type="button" onClick={() => change("imageUrl", "")} title="Remove image">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+              <label className="secondary-button contact-image-button">
+                <Upload size={16} />
+                {uploadingImage ? "Uploading..." : values.imageUrl ? "Replace image" : "Upload image"}
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={uploadContactImage} disabled={uploadingImage} />
+              </label>
+              {uploadError && <p className="error">{uploadError}</p>}
+            </div>
+          </div>
           <label>
             <span>Image source</span>
             <input value={values.imageSourceUrl} onChange={(event) => change("imageSourceUrl", event.target.value)} placeholder="https://..." />

@@ -9,7 +9,7 @@ const numberFromEnv = (name: string, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const nodeEnv = process.env.NODE_ENV ?? "development";
+const nodeEnv = process.env.NODE_ENV ?? (process.env.npm_lifecycle_event === "start" ? "production" : "development");
 const port = numberFromEnv("PORT", 4000);
 
 export const config = {
