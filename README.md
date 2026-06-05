@@ -14,6 +14,21 @@ The Vite client runs on `http://localhost:5173`; the API runs on `http://localho
 
 Staff sign in with email and password. Admins can invite moderators from the Users tab; if SMTP is not configured, invite links are printed to the server console.
 
+## Email
+
+Moderator invites are sent through SMTP. ZeptoMail works well here:
+
+```bash
+MAIL_PROVIDER=zeptomail
+SMTP_FROM="Save The Gate <noreply@savethegate.org>"
+ZEPTO_SMTP_HOST=smtp.zeptomail.eu
+ZEPTO_SMTP_PORT=587
+ZEPTO_SMTP_USER=emailapikey
+ZEPTO_SMTP_PASS=your-zeptomail-smtp-password
+```
+
+With `MAIL_PROVIDER=zeptomail`, the app defaults to `smtp.zeptomail.eu`, port `587`, username `emailapikey`, and TLS. It accepts either generic `SMTP_*` variables or iWatched-style `ZEPTO_SMTP_*` variables. Zepto API/template keys can be present for consistency, but this app currently sends verification and invite emails through SMTP. The Admin > Users tab has a test email form to verify delivery before inviting moderators.
+
 ## Production
 
 ```bash

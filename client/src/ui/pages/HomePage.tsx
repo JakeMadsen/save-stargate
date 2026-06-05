@@ -1,4 +1,4 @@
-import { ArrowRight, Megaphone, Target, Users } from "lucide-react";
+import { ArrowRight, Mail, Megaphone, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api.js";
@@ -61,6 +61,17 @@ export const HomePage = () => {
         </div>
       </section>
 
+      <section className="content-band contact-cta-band">
+        <div>
+          <div className="card-kicker"><Mail size={16} /> Site inbox</div>
+          <h2>Have something we should know?</h2>
+          <p>Send resources, corrections, press notes, or offers to help. Until campaign email is fully set up, messages go straight into the admin inbox here.</p>
+        </div>
+        <Link className="primary-button" to="/write-us">
+          Write us <ArrowRight size={18} />
+        </Link>
+      </section>
+
       <section className="home-priority-grid">
         <div className="home-update-panel">
           <div className="section-heading">
@@ -86,19 +97,19 @@ export const HomePage = () => {
 
       <section className="content-band">
         <div className="section-heading">
-          <span>People to contact</span>
+          <span>Who to contact</span>
           <Link to="/contacts">Full list</Link>
         </div>
         <div className="card-grid three">
           {(data?.contacts ?? []).map((contact) => (
             <Link className="card clickable-card" key={contact._id} to={contactAnchor(contact)}>
+              <div className="card-kicker">{contact.organization}</div>
+              <h3>{contact.name}</h3>
               {contact.imageUrl && (
                 <div className={`home-contact-image ${contact.kind === "entity" ? "logo-image" : ""}`}>
                   <img src={contact.imageUrl} alt={contact.name} loading="lazy" />
                 </div>
               )}
-              <div className="card-kicker">{contact.organization}</div>
-              <h3>{contact.name}</h3>
               <p>{contact.role}</p>
               <span className="text-link">View contact details</span>
             </Link>

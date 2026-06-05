@@ -2,6 +2,9 @@ node_modules/
 dist/
 .env
 .env.local
+.env.fly
+.fly-secrets.ps1
+.fly-secrets.txt
 coverage/
 .vite/
 npm-debug.log*

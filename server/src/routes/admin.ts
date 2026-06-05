@@ -11,7 +11,9 @@ import {
   moderateCommentSchema,
   petitionSchema,
   reviewContactSuggestionSchema,
+  reviewContactMessageSchema,
   resourceLinkSchema,
+  testEmailSchema,
   updatePostSchema,
   updateUserSchema
 } from "../../../shared/src/index.js";
@@ -22,9 +24,11 @@ import { hasRole, canManageRole } from "../auth/permissions.js";
 import { slugify } from "../utils/slug.js";
 import { audit } from "../services/audit.js";
 import { createInviteLink } from "../services/authTokens.js";
+import { isEmailConfigured, sendTestEmail, verifyEmailSettings } from "../services/email.js";
 import { syncOnePetition } from "../services/petitionSync.js";
 import { Comment } from "../models/Comment.js";
 import { CommunityTopic } from "../models/CommunityTopic.js";
+import { ContactMessage } from "../models/ContactMessage.js";
 import { ContactTarget } from "../models/ContactTarget.js";
 import { ContactSuggestion } from "../models/ContactSuggestion.js";
 import { Petition } from "../models/Petition.js";
@@ -153,16 +157,17 @@ const crudRoutes = (options: {
 adminRouter.get(
   "/dashboard",
   asyncRoute(async (_req, res) => {
-    const [petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments] = await Promise.all([
+    const [petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, newContactMessages] = await Promise.all([
       Petition.countDocuments({ status: "active" }),
       Petition.countDocuments({ syncStatus: "failed" }),
       Comment.countDocuments({ reportCount: { $gt: 0 }, status: "visible" }),
       Comment.countDocuments({ status: "hidden" }),
       UpdatePost.countDocuments({ status: "draft" }),
-      Comment.find().sort({ createdAt: -1 }).limit(8).populate("authorId", "email displayName")
+      Comment.find().sort({ createdAt: -1 }).limit(8).populate("authorId", "email displayName"),
+      ContactMessage.countDocuments({ status: "new" })
     ]);
     const pendingContactSuggestions = await ContactSuggestion.countDocuments({ status: "pending" });
-    res.json({ petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, pendingContactSuggestions });
+    res.json({ petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, pendingContactSuggestions, newContactMessages });
   })
 );
 
@@ -294,6 +299,45 @@ adminRouter.patch(
   })
 );
 
+adminRouter.get(
+  "/contact-messages",
+  requireRole("moderator"),
+  asyncRoute(async (_req, res) => {
+    const messages = await ContactMessage.find().populate("reviewedBy", "email displayName").sort({ status: 1, createdAt: -1 }).limit(300);
+    res.json({ messages });
+  })
+);
+
+adminRouter.patch(
+  "/contact-messages/:id",
+  requireRole("moderator"),
+  validateBody(reviewContactMessageSchema),
+  asyncRoute(async (req, res) => {
+    const message = await ContactMessage.findById(req.params.id);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    message.status = req.body.status;
+    message.adminNote = req.body.adminNote;
+    message.reviewedBy = req.user!._id;
+    message.reviewedAt = new Date();
+    await message.save();
+
+    await audit(req, "review-contact-message", "contact-message", message._id, { status: req.body.status });
+    res.json({ message });
+  })
+);
+
+adminRouter.delete(
+  "/contact-messages/:id",
+  requireRole("admin"),
+  asyncRoute(async (req, res) => {
+    const message = await ContactMessage.findByIdAndDelete(req.params.id);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    await audit(req, "delete-contact-message", "contact-message", message._id);
+    res.json({ ok: true });
+  })
+);
+
 crudRoutes({
   path: "/topics",
   model: CommunityTopic,
@@ -343,6 +387,22 @@ adminRouter.get(
   asyncRoute(async (_req, res) => {
     const users = await User.find().select("-passwordHash").sort({ role: 1, email: 1 }).limit(300);
     res.json({ users });
+  })
+);
+
+adminRouter.post(
+  "/email/test",
+  requireRole("admin"),
+  validateBody(testEmailSchema),
+  asyncRoute(async (req, res) => {
+    if (!isEmailConfigured()) {
+      return res.status(400).json({ error: "SMTP is not configured for this environment" });
+    }
+
+    await verifyEmailSettings();
+    await sendTestEmail(req.body.email);
+    await audit(req, "send-test-email", "email", undefined, { to: req.body.email });
+    res.json({ ok: true });
   })
 );
 

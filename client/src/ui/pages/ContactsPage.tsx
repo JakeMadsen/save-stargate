@@ -83,12 +83,12 @@ const ContactCard = ({ contact }: { contact: Contact }) => {
         {isEntity ? <Building2 size={15} /> : <BriefcaseBusiness size={15} />}
         {isEntity ? "Entity" : "Person"} · Priority {contact.priority}
       </div>
+      <h3>{contact.name}</h3>
       {contact.imageUrl && (
         <div className={`contact-image-frame ${isEntity ? "entity" : "person"}`}>
           <img src={contact.imageUrl} alt={contact.name} loading="lazy" />
         </div>
       )}
-      <h3>{contact.name}</h3>
       {(contact.role || contact.organization) && (
         <p>
           {contact.role && <strong>{contact.role}</strong>}

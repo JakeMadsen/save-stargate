@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
-import { commentSchema, contactSuggestionSchema, reportCommentSchema } from "../../../shared/src/index.js";
+import { commentSchema, contactMessageSchema, contactSuggestionSchema, reportCommentSchema } from "../../../shared/src/index.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { asyncRoute } from "../utils/asyncRoute.js";
 import { Comment } from "../models/Comment.js";
 import { CommunityTopic } from "../models/CommunityTopic.js";
+import { ContactMessage } from "../models/ContactMessage.js";
 import { ContactTarget } from "../models/ContactTarget.js";
 import { ContactSuggestion } from "../models/ContactSuggestion.js";
 import { Petition } from "../models/Petition.js";
@@ -16,25 +18,33 @@ export const publicRouter = Router();
 
 const published = { status: "published" };
 const suggestionAttempts = new Map<string, { count: number; resetAt: number }>();
+const messageAttempts = new Map<string, { count: number; resetAt: number }>();
 
-const limitContactSuggestions = (req: Request, res: Response, next: NextFunction) => {
+const limitAttempts = (store: Map<string, { count: number; resetAt: number }>, maxAttempts: number, error: string) => (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const key = req.ip ?? "unknown";
   const now = Date.now();
-  const current = suggestionAttempts.get(key);
+  const current = store.get(key);
   const windowMs = 60 * 60 * 1000;
 
   if (!current || current.resetAt <= now) {
-    suggestionAttempts.set(key, { count: 1, resetAt: now + windowMs });
+    store.set(key, { count: 1, resetAt: now + windowMs });
     return next();
   }
 
-  if (current.count >= 5) {
-    return res.status(429).json({ error: "Too many suggestions. Please try again later." });
+  if (current.count >= maxAttempts) {
+    return res.status(429).json({ error });
   }
 
   current.count += 1;
   return next();
 };
+const limitContactSuggestions = limitAttempts(suggestionAttempts, 5, "Too many suggestions. Please try again later.");
+const limitContactMessages = limitAttempts(messageAttempts, 3, "Too many messages. Please try again later.");
+const hashIp = (value?: string) => (value ? createHash("sha256").update(value).digest("hex") : undefined);
 
 publicRouter.get(
   "/home",
@@ -105,6 +115,27 @@ publicRouter.post(
       status: "pending"
     });
     res.status(201).json({ suggestion });
+  })
+);
+
+publicRouter.post(
+  "/contact-messages",
+  limitContactMessages,
+  validateBody(contactMessageSchema),
+  asyncRoute(async (req, res) => {
+    if (req.body.website) return res.status(204).send();
+
+    const message = await ContactMessage.create({
+      name: req.body.name,
+      email: req.body.email || undefined,
+      subject: req.body.subject,
+      category: req.body.category,
+      message: req.body.message,
+      status: "new",
+      ipHash: hashIp(req.ip),
+      userAgent: req.get("user-agent")?.slice(0, 300)
+    });
+    res.status(201).json({ message });
   })
 );
 

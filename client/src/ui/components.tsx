@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, ExternalLink, Flag, MessageSquare, RadioTower } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, Flag, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { postJson } from "../api.js";
 import { useAuth } from "./AuthContext.js";
@@ -49,6 +49,11 @@ const formatDate = (value: string) =>
     day: "numeric",
     year: "numeric"
   }).format(new Date(value));
+const petitionStatusLabel = (status?: string) => {
+  if (status === "failed" || status === "disabled") return "Manual count";
+  if (status === "ok") return "Live count";
+  return "Tracked petition";
+};
 
 export const ProgressBar = ({ current, goal }: { current: number; goal: number }) => {
   const percent = goal > 0 ? Math.min(100, Math.round((current / goal) * 100)) : 0;
@@ -61,15 +66,13 @@ export const ProgressBar = ({ current, goal }: { current: number; goal: number }
 
 export const PetitionCard = ({ petition }: { petition: Petition }) => (
   <article className="card petition-card">
+    <div className="card-kicker">{petitionStatusLabel(petition.syncStatus)}</div>
+    <h3>{petition.title}</h3>
     {petition.imageUrl && (
       <div className="petition-card-image">
         <img src={petition.imageUrl} alt="" loading="lazy" />
       </div>
     )}
-    <div className="card-kicker">
-      <RadioTower size={15} /> {petition.syncStatus ?? "tracked"}
-    </div>
-    <h3>{petition.title}</h3>
     <p>{petition.description}</p>
     {petition.goalCount > 0 && <ProgressBar current={petition.currentCount} goal={petition.goalCount} />}
     <div className="metric-row">
@@ -192,7 +195,9 @@ export const CommentThread = ({
           <button type="submit">Post comment</button>
         </form>
       ) : (
-        <p className="notice"><AlertCircle size={16} /> Log in with email to comment.</p>
+        <p className="notice">
+          <AlertCircle size={16} /> <Link to="/login">Log in</Link> or <Link to="/signup">sign up</Link> to comment.
+        </p>
       )}
       <div className="comment-list">
         {comments.map((comment) => (

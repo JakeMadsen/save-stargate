@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const roles = ["owner", "admin", "moderator", "user"] as const;
-export const userStatuses = ["invited", "active", "banned"] as const;
+export const userStatuses = ["pending", "invited", "active", "banned"] as const;
 export const contentStatuses = ["draft", "published", "archived"] as const;
 export const petitionStatuses = ["active", "won", "paused", "archived"] as const;
 export const commentStatuses = ["visible", "hidden", "deleted"] as const;
@@ -22,6 +22,8 @@ export const contactLinkTypes = [
   "other"
 ] as const;
 export const contactSuggestionStatuses = ["pending", "approved", "rejected"] as const;
+export const contactMessageStatuses = ["new", "read", "replied", "archived"] as const;
+export const contactMessageCategories = ["general", "press", "volunteer", "resource", "technical", "other"] as const;
 
 export const emailSchema = z.string().trim().email().toLowerCase();
 export const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "Expected Mongo object id");
@@ -64,18 +66,32 @@ export const petitionImageUrlSchema = z
 
 export const loginRequestSchema = z.object({
   email: emailSchema,
-  password: z.string().min(8).max(200)
+  password: z.string().min(6).max(200)
+});
+
+export const signupRequestSchema = z.object({
+  email: emailSchema,
+  displayName: z.string().trim().min(2).max(80).optional().or(z.literal("")),
+  password: z.string().min(6).max(200)
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(20)
 });
 
 export const acceptInviteSchema = z.object({
   token: z.string().min(20),
   displayName: z.string().trim().min(2).max(80).optional().or(z.literal("")),
-  password: z.string().min(10).max(200)
+  password: z.string().min(6).max(200)
 });
 
 export const inviteUserSchema = z.object({
   email: emailSchema,
   role: z.enum(["admin", "moderator", "user"])
+});
+
+export const testEmailSchema = z.object({
+  email: emailSchema
 });
 
 export const updateUserSchema = z.object({
@@ -150,6 +166,20 @@ export const contactSuggestionSchema = z.object({
   notes: z.string().trim().min(5).max(1500)
 });
 
+export const contactMessageSchema = z.object({
+  name: z.string().trim().max(100).optional().or(z.literal("")),
+  email: emailSchema.optional().or(z.literal("")),
+  subject: z.string().trim().min(3).max(140),
+  category: z.enum(contactMessageCategories).default("general"),
+  message: z.string().trim().min(10).max(5000),
+  website: z.string().max(0).optional().or(z.literal(""))
+});
+
+export const reviewContactMessageSchema = z.object({
+  status: z.enum(contactMessageStatuses),
+  adminNote: z.string().trim().max(1500).optional().or(z.literal(""))
+});
+
 export const reviewContactSuggestionSchema = z.object({
   status: z.enum(["approved", "rejected"]),
   adminNote: z.string().trim().max(1000).optional()
@@ -196,3 +226,5 @@ export type ResourceType = (typeof resourceTypes)[number];
 export type ContactKind = (typeof contactKinds)[number];
 export type ContactLinkType = (typeof contactLinkTypes)[number];
 export type ContactSuggestionStatus = (typeof contactSuggestionStatuses)[number];
+export type ContactMessageStatus = (typeof contactMessageStatuses)[number];
+export type ContactMessageCategory = (typeof contactMessageCategories)[number];

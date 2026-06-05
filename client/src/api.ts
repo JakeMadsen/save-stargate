@@ -3,7 +3,7 @@ export type ApiUser = {
   email: string;
   displayName?: string;
   role: "owner" | "admin" | "moderator" | "user";
-  status: "invited" | "active" | "banned";
+  status: "pending" | "invited" | "active" | "banned";
 };
 
 export const api = async <T>(path: string, options: RequestInit = {}): Promise<T> => {

@@ -5,10 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#071015" />
     <title>Save The Gate</title>
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("save-the-gate-theme");
+          const theme = saved === "dark" || saved === "light" ? saved : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

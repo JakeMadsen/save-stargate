@@ -697,7 +697,8 @@ const Dashboard = () => {
       ["Active petitions", data?.petitionCount ?? 0],
       ["Failed syncs", data?.failedSyncs ?? 0],
       ["Reported comments", data?.reportedComments ?? 0],
-      ["Draft updates", data?.draftUpdates ?? 0]
+      ["Draft updates", data?.draftUpdates ?? 0],
+      ["New messages", data?.newContactMessages ?? 0]
     ],
     [data]
   );
@@ -718,6 +719,73 @@ const Dashboard = () => {
           <p key={comment._id} className="list-line">{comment.body}</p>
         ))}
       </div>
+    </section>
+  );
+};
+
+const ContactMessages = () => {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<AdminItem[]>([]);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const load = () =>
+    api<{ messages: AdminItem[] }>("/api/admin/contact-messages").then((data) => {
+      setMessages(data.messages);
+      setNotes(Object.fromEntries(data.messages.map((message) => [message._id, message.adminNote ?? ""])));
+    });
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const updateMessage = async (id: string, status: string) => {
+    await patchJson(`/api/admin/contact-messages/${id}`, { status, adminNote: notes[id] ?? "" });
+    await load();
+  };
+
+  const remove = async (id: string) => {
+    await deleteJson(`/api/admin/contact-messages/${id}`);
+    await load();
+  };
+  const statusOrder: Record<string, number> = { new: 0, read: 1, replied: 2, archived: 3 };
+  const orderedMessages = [...messages].sort(
+    (left, right) =>
+      (statusOrder[left.status] ?? 9) - (statusOrder[right.status] ?? 9) ||
+      new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime()
+  );
+
+  return (
+    <section className="admin-list inbox-list">
+      {orderedMessages.map((message) => (
+        <article className="card inbox-card" key={message._id}>
+          <div className="inbox-card-header">
+            <div>
+              <div className="card-kicker">{message.status} · {message.category}</div>
+              <h3>{message.subject}</h3>
+              <p>
+                {message.name || "Anonymous"}
+                {message.email ? ` · ${message.email}` : ""}
+                {message.createdAt ? ` · ${new Date(message.createdAt).toLocaleString()}` : ""}
+              </p>
+            </div>
+            <div className="button-row">
+              <button type="button" className="small secondary-button" onClick={() => updateMessage(message._id, "read")}>Read</button>
+              <button type="button" className="small secondary-button" onClick={() => updateMessage(message._id, "replied")}>Replied</button>
+              <button type="button" className="small secondary-button" onClick={() => updateMessage(message._id, "archived")}>Archive</button>
+              {(user?.role === "admin" || user?.role === "owner") && (
+                <button type="button" className="icon-button danger" onClick={() => remove(message._id)} title="Delete message">
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="inbox-message">{message.message}</p>
+          <label>
+            <span>Admin note</span>
+            <textarea value={notes[message._id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [message._id]: event.target.value }))} />
+          </label>
+        </article>
+      ))}
+      {messages.length === 0 && <p className="empty">No incoming messages yet.</p>}
     </section>
   );
 };
@@ -796,6 +864,10 @@ const Users = () => {
   const [users, setUsers] = useState<AdminItem[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [testEmail, setTestEmail] = useState("");
+  const [testMessage, setTestMessage] = useState("");
+  const [testError, setTestError] = useState("");
   const load = () => api<{ users: AdminItem[] }>("/api/admin/users").then((data) => setUsers(data.users));
 
   useEffect(() => {
@@ -804,10 +876,29 @@ const Users = () => {
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = await postJson<{ inviteLink?: string }>("/api/admin/users/invites", { email: inviteEmail, role: "moderator" });
-    setInviteLink(result.inviteLink ?? "");
-    setInviteEmail("");
-    await load();
+    setInviteError("");
+    setInviteLink("");
+    try {
+      const result = await postJson<{ inviteLink?: string }>("/api/admin/users/invites", { email: inviteEmail, role: "moderator" });
+      setInviteLink(result.inviteLink ?? "");
+      setInviteEmail("");
+      await load();
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : "Invite failed");
+    }
+  };
+
+  const sendTest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setTestError("");
+    setTestMessage("");
+    try {
+      await postJson("/api/admin/email/test", { email: testEmail });
+      setTestMessage(`Test email sent to ${testEmail}`);
+      setTestEmail("");
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : "Test email failed");
+    }
   };
 
   const updateUser = async (id: string, patch: Record<string, any>) => {
@@ -838,22 +929,39 @@ const Users = () => {
           </article>
         ))}
       </div>
-      <form className="card admin-form admin-resource-form" onSubmit={submit}>
-        <h3><UserPlus size={17} /> Invite moderator</h3>
-        <p>Send a one-time link that lets the moderator create their own password.</p>
-        <div className="admin-form-grid">
-          <label>
-            <span>Email</span>
-            <input type="email" required placeholder="moderator@example.com" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
-          </label>
-        </div>
-        <button type="submit">Invite moderator</button>
-        {inviteLink && (
-          <p className="notice">
-            Invite link: <a href={inviteLink}>{inviteLink}</a>
-          </p>
-        )}
-      </form>
+      <div className="admin-stack">
+        <form className="card admin-form admin-resource-form" onSubmit={submit}>
+          <h3><UserPlus size={17} /> Invite moderator</h3>
+          <p>Send a one-time link that lets the moderator create their own password.</p>
+          <div className="admin-form-grid">
+            <label>
+              <span>Email</span>
+              <input type="email" required placeholder="moderator@example.com" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
+            </label>
+          </div>
+          <button type="submit">Invite moderator</button>
+          {inviteError && <p className="error">{inviteError}</p>}
+          {inviteLink && (
+            <p className="notice">
+              Invite link: <a href={inviteLink}>{inviteLink}</a>
+            </p>
+          )}
+        </form>
+
+        <form className="card admin-form admin-resource-form" onSubmit={sendTest}>
+          <h3><Mail size={17} /> Test email</h3>
+          <p>Send a small delivery check before relying on moderator invites.</p>
+          <div className="admin-form-grid">
+            <label>
+              <span>Email</span>
+              <input type="email" required placeholder="you@example.com" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} />
+            </label>
+          </div>
+          <button type="submit">Send test email</button>
+          {testError && <p className="error">{testError}</p>}
+          {testMessage && <p className="notice success">{testMessage}</p>}
+        </form>
+      </div>
     </section>
   );
 };
@@ -892,6 +1000,7 @@ export const AdminPage = () => {
           </button>
         ))}
         <button className={tab === "moderation" ? "active" : ""} onClick={() => setTab("moderation")}>Moderation</button>
+        <button className={tab === "contact-messages" ? "active" : ""} onClick={() => setTab("contact-messages")}>Inbox</button>
         <button className={tab === "contact-suggestions" ? "active" : ""} onClick={() => setTab("contact-suggestions")}>Contact Suggestions</button>
         <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users</button>
       </div>
@@ -899,6 +1008,7 @@ export const AdminPage = () => {
       {tab === "contacts" && <ContactTargetsPanel />}
       {currentResource && tab !== "contacts" && <CrudPanel resource={currentResource} />}
       {tab === "moderation" && <Moderation />}
+      {tab === "contact-messages" && <ContactMessages />}
       {tab === "contact-suggestions" && <ContactSuggestions />}
       {tab === "users" && <Users />}
     </section>
