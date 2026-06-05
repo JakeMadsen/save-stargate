@@ -95,6 +95,30 @@ export const sendVerificationEmail = async (email: string, link: string) => {
   });
 };
 
+export const sendFanMessageVerificationEmail = async (email: string, link: string) => {
+  const subject = "Confirm your Save The Gate message";
+  const safeLink = escapeHtml(link);
+
+  if (!isEmailConfigured()) {
+    console.log(`[fan-message-link] ${email}: ${link}`);
+    return;
+  }
+
+  await sendMail({
+    to: email,
+    subject,
+    text: `Confirm your Save The Gate message with this one-time link: ${link}\n\nIt expires in 24 hours.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#172233">
+        <h1 style="font-size:22px;margin:0 0 12px">Confirm your message</h1>
+        <p>Use this one-time link to confirm your message for Save The Gate. It expires in 24 hours.</p>
+        <p><a href="${safeLink}" style="display:inline-block;background:#1d4f91;color:#fff;padding:10px 14px;border-radius:6px;text-decoration:none">Confirm message</a></p>
+        <p style="font-size:13px;color:#5c6b82">If the button does not work, open this link: ${safeLink}</p>
+      </div>
+    `
+  });
+};
+
 export const sendTestEmail = async (email: string) => {
   await sendMail({
     to: email,

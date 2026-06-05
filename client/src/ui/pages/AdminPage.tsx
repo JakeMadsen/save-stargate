@@ -1,5 +1,6 @@
 import {
   Ban,
+  BarChart3,
   BriefcaseBusiness,
   Building2,
   Database,
@@ -7,6 +8,7 @@ import {
   ExternalLink,
   Facebook,
   Globe,
+  Heart,
   Instagram,
   Linkedin,
   Mail,
@@ -14,18 +16,25 @@ import {
   Music2,
   Plus,
   RefreshCw,
+  Search,
+  Shield,
   ShieldCheck,
   Trash2,
   Twitter,
   Upload,
+  UserCheck,
   UserPlus,
+  UserX,
   Youtube
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, deleteJson, patchJson, postForm, postJson, putJson } from "../../api.js";
 import { isStaff, useAuth } from "../AuthContext.js";
 
 type AdminItem = Record<string, any> & { _id: string };
+type UserStat = [label: string, value: number, Icon: LucideIcon];
+type ManageableRole = "admin" | "moderator" | "user";
 type ContactLinkType =
   | "website"
   | "email"
@@ -698,7 +707,9 @@ const Dashboard = () => {
       ["Failed syncs", data?.failedSyncs ?? 0],
       ["Reported comments", data?.reportedComments ?? 0],
       ["Draft updates", data?.draftUpdates ?? 0],
-      ["New messages", data?.newContactMessages ?? 0]
+      ["New messages", data?.newContactMessages ?? 0],
+      ["Pending fan voices", data?.pendingFanMessages ?? 0],
+      ["Views, 7 days", data?.traffic7Days ?? 0]
     ],
     [data]
   );
@@ -790,6 +801,120 @@ const ContactMessages = () => {
   );
 };
 
+const Traffic = () => {
+  const [data, setData] = useState<Record<string, any> | null>(null);
+
+  useEffect(() => {
+    api<Record<string, any>>("/api/admin/traffic").then(setData);
+  }, []);
+
+  return (
+    <section className="admin-panel traffic-panel">
+      <div className="metric-grid">
+        <article className="card metric-card">
+          <span><BarChart3 size={16} /> Views, 30 days</span>
+          <strong>{data?.totalViews ?? 0}</strong>
+        </article>
+        <article className="card metric-card">
+          <span><UserCheck size={16} /> Visitors, 30 days</span>
+          <strong>{data?.totalVisitors ?? 0}</strong>
+        </article>
+      </div>
+
+      <div className="card traffic-table-card">
+        <h3>Top pages</h3>
+        <div className="admin-table traffic-table">
+          <div className="admin-table-row admin-table-head">
+            <span>Page</span>
+            <span>Views</span>
+            <span>Visitors</span>
+            <span>Last seen</span>
+          </div>
+          {(data?.byPath ?? []).map((item: any) => (
+            <div className="admin-table-row" key={item.path}>
+              <span>{item.path}</span>
+              <span>{item.views}</span>
+              <span>{item.visitors}</span>
+              <span>{item.lastSeenAt ? new Date(item.lastSeenAt).toLocaleString() : "Never"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card traffic-table-card">
+        <h3>Daily traffic</h3>
+        <div className="admin-table traffic-table compact">
+          <div className="admin-table-row admin-table-head">
+            <span>Date</span>
+            <span>Views</span>
+            <span>Visitors</span>
+          </div>
+          {(data?.byDay ?? []).map((item: any) => (
+            <div className="admin-table-row" key={item.dateKey}>
+              <span>{item.dateKey}</span>
+              <span>{item.views}</span>
+              <span>{item.visitors}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const FanMessages = () => {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<AdminItem[]>([]);
+  const load = () => api<{ messages: AdminItem[] }>("/api/admin/fan-messages").then((data) => setMessages(data.messages));
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const setStatus = async (id: string, status: string) => {
+    await patchJson(`/api/admin/fan-messages/${id}`, { status });
+    await load();
+  };
+
+  const remove = async (id: string) => {
+    await deleteJson(`/api/admin/fan-messages/${id}`);
+    await load();
+  };
+
+  return (
+    <section className="admin-list">
+      {messages.map((message) => (
+        <article className="card inbox-card fan-admin-card" key={message._id}>
+          <div className="inbox-card-header">
+            <div>
+              <div className="card-kicker">
+                <Heart size={15} /> {message.status} · {message.anonymous ? "anonymous" : "member"}
+              </div>
+              <h3>{message.displayName || message.authorId?.displayName || message.authorId?.email || "A Stargate fan"}</h3>
+              <p>
+                {message.email ? `${message.email} · ` : ""}
+                {message.createdAt ? new Date(message.createdAt).toLocaleString() : ""}
+              </p>
+            </div>
+            <div className="button-row">
+              <button type="button" className="small secondary-button" onClick={() => setStatus(message._id, "visible")}>Visible</button>
+              <button type="button" className="small secondary-button" onClick={() => setStatus(message._id, "hidden")}>Hide</button>
+              <button type="button" className="small secondary-button danger" onClick={() => setStatus(message._id, "deleted")}>Mark deleted</button>
+              {(user?.role === "admin" || user?.role === "owner") && (
+                <button type="button" className="icon-button danger" onClick={() => remove(message._id)} title="Delete message">
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="inbox-message">{message.message}</p>
+        </article>
+      ))}
+      {messages.length === 0 && <p className="empty">No fan messages yet.</p>}
+    </section>
+  );
+};
+
 const Moderation = () => {
   const [comments, setComments] = useState<AdminItem[]>([]);
   const load = () => api<{ comments: AdminItem[] }>("/api/admin/moderation/comments").then((data) => setComments(data.comments));
@@ -861,25 +986,62 @@ const ContactSuggestions = () => {
 };
 
 const Users = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminItem[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "moderator" | "user">("moderator");
   const [inviteLink, setInviteLink] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [testEmail, setTestEmail] = useState("");
   const [testMessage, setTestMessage] = useState("");
   const [testError, setTestError] = useState("");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
   const load = () => api<{ users: AdminItem[] }>("/api/admin/users").then((data) => setUsers(data.users));
+  const manageableRoles = useMemo<ManageableRole[]>(
+    () => (currentUser?.role === "owner" ? ["user", "moderator", "admin"] : ["user", "moderator"]),
+    [currentUser?.role]
+  );
 
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!manageableRoles.includes(inviteRole)) {
+      setInviteRole("moderator");
+    }
+  }, [inviteRole, manageableRoles]);
+
+  const stats = useMemo<UserStat[]>(
+    () => [
+      ["Total users", users.length, UserCheck],
+      ["Active", users.filter((item) => item.status === "active").length, ShieldCheck],
+      ["Pending", users.filter((item) => item.status === "pending" || item.status === "invited").length, Mail],
+      ["Banned", users.filter((item) => item.status === "banned").length, UserX]
+    ],
+    [users]
+  );
+
+  const filteredUsers = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return users.filter((item) => {
+      const matchesQuery = !needle || [item.email, item.displayName, item.role, item.status].some((value) => String(value ?? "").toLowerCase().includes(needle));
+      const matchesRole = roleFilter === "all" || item.role === roleFilter;
+      const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+      return matchesQuery && matchesRole && matchesStatus;
+    });
+  }, [query, roleFilter, statusFilter, users]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setInviteError("");
     setInviteLink("");
     try {
-      const result = await postJson<{ inviteLink?: string }>("/api/admin/users/invites", { email: inviteEmail, role: "moderator" });
+      const result = await postJson<{ inviteLink?: string }>("/api/admin/users/invites", { email: inviteEmail, role: inviteRole });
       setInviteLink(result.inviteLink ?? "");
       setInviteEmail("");
       await load();
@@ -902,44 +1064,164 @@ const Users = () => {
   };
 
   const updateUser = async (id: string, patch: Record<string, any>) => {
-    await patchJson(`/api/admin/users/${id}`, patch);
-    await load();
+    setActionError("");
+    setActionMessage("");
+    try {
+      await patchJson(`/api/admin/users/${id}`, patch);
+      setActionMessage("User updated.");
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "User update failed");
+    }
+  };
+
+  const resendVerification = async (id: string) => {
+    setActionError("");
+    setActionMessage("");
+    try {
+      const result = await postJson<{ verificationLink?: string }>(`/api/admin/users/${id}/resend-verification`, {});
+      setActionMessage(result.verificationLink ? `Verification link: ${result.verificationLink}` : "Verification email sent.");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not resend verification");
+    }
+  };
+
+  const deleteUser = async (item: AdminItem) => {
+    const label = item.displayName || item.email;
+    if (!window.confirm(`Delete ${label}? This removes the account instead of banning it.`)) return;
+    setActionError("");
+    setActionMessage("");
+    try {
+      await deleteJson(`/api/admin/users/${item._id}`);
+      setActionMessage("User deleted.");
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not delete user");
+    }
   };
 
   return (
-    <section className="admin-panel">
-      <div className="admin-list admin-resource-list">
-        {users.map((user) => (
-          <article className="card compact-card admin-resource-row" key={user._id}>
-            <div>
-              <strong>{user.email}</strong>
-              <span>{user.role} · {user.status}</span>
-            </div>
-            <div className="button-row">
-              <select value={user.role} onChange={(event) => updateUser(user._id, { role: event.target.value })}>
-                <option value="user">user</option>
-                <option value="moderator">moderator</option>
-                <option value="admin">admin</option>
-                <option value="owner">owner</option>
-              </select>
-              <button type="button" onClick={() => updateUser(user._id, { status: user.status === "banned" ? "active" : "banned" })}>
-                {user.status === "banned" ? "Unban" : "Ban"}
-              </button>
-            </div>
-          </article>
-        ))}
+    <section className="admin-panel user-admin-panel">
+      <div className="metric-grid">
+        {stats.map(([label, value, Icon]) => {
+          return (
+            <article className="card metric-card" key={String(label)}>
+              <span><Icon size={16} /> {label}</span>
+              <strong>{String(value)}</strong>
+            </article>
+          );
+        })}
       </div>
+
+      <div className="card user-toolbar">
+        <label className="user-search">
+          <span>Search</span>
+          <div>
+            <Search size={16} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Email, display name, role..." />
+          </div>
+        </label>
+        <label>
+          <span>Role</span>
+          <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            <option value="all">All roles</option>
+            <option value="owner">Owner</option>
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+            <option value="user">User</option>
+          </select>
+        </label>
+        <label>
+          <span>Status</span>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="invited">Invited</option>
+            <option value="active">Active</option>
+            <option value="banned">Banned</option>
+          </select>
+        </label>
+      </div>
+
+      {actionMessage && <p className="notice success">{actionMessage}</p>}
+      {actionError && <p className="error">{actionError}</p>}
+
+      <div className="admin-list user-list">
+        {filteredUsers.map((item) => {
+          const canEdit = item.role !== "owner" && item._id !== currentUser?._id;
+          return (
+            <article className="card user-row" key={item._id}>
+              <div className="user-identity">
+                <div className={`user-avatar role-${item.role}`}>
+                  {item.role === "owner" || item.role === "admin" ? <Shield size={20} /> : <UserCheck size={20} />}
+                </div>
+                <div>
+                  <strong>{item.displayName || item.email}</strong>
+                  <span>{item.email}</span>
+                  <small>
+                    Created {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "unknown"}
+                    {item.lastLoginAt ? ` · Last login ${new Date(item.lastLoginAt).toLocaleDateString()}` : ""}
+                  </small>
+                </div>
+              </div>
+              <div className="user-status-stack">
+                <span className={`status-pill ${item.status}`}>{item.status}</span>
+                <span className="role-pill">{item.role}</span>
+              </div>
+              <div className="user-controls">
+                <select value={item.role} disabled={!canEdit} onChange={(event) => updateUser(item._id, { role: event.target.value })}>
+                  {item.role === "owner" && <option value="owner">owner</option>}
+                  {manageableRoles.map((role) => (
+                    <option value={role} key={role}>{role}</option>
+                  ))}
+                </select>
+                <select value={item.status} disabled={!canEdit} onChange={(event) => updateUser(item._id, { status: event.target.value })}>
+                  <option value="pending">pending</option>
+                  <option value="invited">invited</option>
+                  <option value="active">active</option>
+                  <option value="banned">banned</option>
+                </select>
+                {item.status === "pending" && item.role === "user" && (
+                  <button type="button" className="secondary-button small" onClick={() => resendVerification(item._id)}>
+                    <Mail size={15} /> Resend
+                  </button>
+                )}
+                {canEdit && item.status !== "banned" && (
+                  <button type="button" className="secondary-button small danger" onClick={() => updateUser(item._id, { status: "banned" })}>
+                    <Ban size={15} /> Ban
+                  </button>
+                )}
+                {canEdit && (
+                  <button type="button" className="secondary-button small danger" onClick={() => deleteUser(item)}>
+                    <Trash2 size={15} /> Delete
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+        {filteredUsers.length === 0 && <p className="empty">No users match those filters.</p>}
+      </div>
+
       <div className="admin-stack">
         <form className="card admin-form admin-resource-form" onSubmit={submit}>
-          <h3><UserPlus size={17} /> Invite moderator</h3>
-          <p>Send a one-time link that lets the moderator create their own password.</p>
+          <h3><UserPlus size={17} /> Invite staff</h3>
+          <p>Send a one-time link that lets a moderator or admin create their own password.</p>
           <div className="admin-form-grid">
             <label>
               <span>Email</span>
               <input type="email" required placeholder="moderator@example.com" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} />
             </label>
+            <label>
+              <span>Role</span>
+              <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as ManageableRole)}>
+                {manageableRoles.map((role) => (
+                  <option value={role} key={role}>{role}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <button type="submit">Invite moderator</button>
+          <button type="submit">Send invite</button>
           {inviteError && <p className="error">{inviteError}</p>}
           {inviteLink && (
             <p className="notice">
@@ -1000,6 +1282,8 @@ export const AdminPage = () => {
           </button>
         ))}
         <button className={tab === "moderation" ? "active" : ""} onClick={() => setTab("moderation")}>Moderation</button>
+        <button className={tab === "fan-messages" ? "active" : ""} onClick={() => setTab("fan-messages")}>Fan Messages</button>
+        <button className={tab === "traffic" ? "active" : ""} onClick={() => setTab("traffic")}>Traffic</button>
         <button className={tab === "contact-messages" ? "active" : ""} onClick={() => setTab("contact-messages")}>Inbox</button>
         <button className={tab === "contact-suggestions" ? "active" : ""} onClick={() => setTab("contact-suggestions")}>Contact Suggestions</button>
         <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users</button>
@@ -1008,6 +1292,8 @@ export const AdminPage = () => {
       {tab === "contacts" && <ContactTargetsPanel />}
       {currentResource && tab !== "contacts" && <CrudPanel resource={currentResource} />}
       {tab === "moderation" && <Moderation />}
+      {tab === "fan-messages" && <FanMessages />}
+      {tab === "traffic" && <Traffic />}
       {tab === "contact-messages" && <ContactMessages />}
       {tab === "contact-suggestions" && <ContactSuggestions />}
       {tab === "users" && <Users />}

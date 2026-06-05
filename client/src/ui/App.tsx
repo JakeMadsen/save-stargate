@@ -1,6 +1,6 @@
 import { LogIn, LogOut, Moon, Shield, Sparkles, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, isStaff, useAuth } from "./AuthContext.js";
 
 type Theme = "light" | "dark";
@@ -15,12 +15,14 @@ const getInitialTheme = (): Theme => {
 
 const Shell = () => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const nav = [
     ["Updates", "/updates"],
     ["Petitions", "/petitions"],
     ["Contacts", "/contacts"],
     ["Community", "/community"],
+    ["Fan Voices", "/fan-messages"],
     ["Resources", "/resources"],
     ["Write Us", "/write-us"]
   ];
@@ -30,6 +32,15 @@ const Shell = () => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(themeKey, theme);
   }, [theme]);
+
+  useEffect(() => {
+    fetch("/api/public/traffic", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: `${location.pathname}${location.search}` })
+    }).catch(() => {});
+  }, [location.pathname, location.search]);
 
   return (
     <>
@@ -78,6 +89,7 @@ const Shell = () => {
         <span>Fan-run site. No official affiliation.</span>
         <div className="footer-links">
           <Link to="/signup">Sign up</Link>
+          <Link to="/fan-messages">Fan voices</Link>
           <Link to="/write-us">Write us</Link>
           <Link to="/login">Staff login</Link>
         </div>

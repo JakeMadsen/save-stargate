@@ -17,6 +17,9 @@ const __dirname = path.dirname(__filename);
 
 export const createApp = (options: { databaseAvailable?: boolean } = {}) => {
   const app = express();
+  if (isProduction) {
+    app.set("trust proxy", 1);
+  }
   const databaseAvailable = options.databaseAvailable ?? mongoose.connection.readyState === 1;
   const sessionStore = databaseAvailable
     ? MongoStore.create({ client: mongoose.connection.getClient() as any })
@@ -40,11 +43,12 @@ export const createApp = (options: { databaseAvailable?: boolean } = {}) => {
       secret: config.sessionSecret,
       resave: false,
       saveUninitialized: false,
+      proxy: isProduction,
       store: sessionStore,
       cookie: {
         httpOnly: true,
         sameSite: "lax",
-        secure: isProduction && config.appUrl.startsWith("https://"),
+        secure: isProduction ? "auto" : false,
         maxAge: 1000 * 60 * 60 * 24 * 30
       }
     })

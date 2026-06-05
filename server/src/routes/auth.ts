@@ -7,6 +7,7 @@ import { consumeEmailVerificationToken, consumeInviteToken, createEmailVerificat
 import { isEmailConfigured } from "../services/email.js";
 import { hashPassword, verifyPassword } from "../services/passwords.js";
 import { isProduction } from "../config.js";
+import { getRequestBaseUrl } from "../utils/requestUrl.js";
 
 export const authRouter = Router();
 
@@ -68,7 +69,7 @@ authRouter.post(
     user.status = "pending";
     await user.save();
 
-    const verification = await createEmailVerificationLink(req.body.email);
+    const verification = await createEmailVerificationLink(req.body.email, getRequestBaseUrl(req));
     res.status(201).json({
       ok: true,
       message: "Check your email for a verification link.",

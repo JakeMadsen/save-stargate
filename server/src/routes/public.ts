@@ -1,6 +1,15 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
-import { commentSchema, contactMessageSchema, contactSuggestionSchema, reportCommentSchema } from "../../../shared/src/index.js";
+import {
+  commentSchema,
+  contactMessageSchema,
+  contactSuggestionSchema,
+  fanMessageSchema,
+  reportCommentSchema,
+  trafficEventSchema,
+  verifyFanMessageSchema
+} from "../../../shared/src/index.js";
+import { isProduction } from "../config.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { asyncRoute } from "../utils/asyncRoute.js";
@@ -9,16 +18,21 @@ import { CommunityTopic } from "../models/CommunityTopic.js";
 import { ContactMessage } from "../models/ContactMessage.js";
 import { ContactTarget } from "../models/ContactTarget.js";
 import { ContactSuggestion } from "../models/ContactSuggestion.js";
+import { FanMessage } from "../models/FanMessage.js";
 import { Petition } from "../models/Petition.js";
 import { PetitionSnapshot } from "../models/PetitionSnapshot.js";
 import { ResourceLink } from "../models/ResourceLink.js";
+import { SiteTraffic } from "../models/SiteTraffic.js";
 import { UpdatePost } from "../models/UpdatePost.js";
+import { isEmailConfigured, sendFanMessageVerificationEmail } from "../services/email.js";
+import { getRequestBaseUrl } from "../utils/requestUrl.js";
 
 export const publicRouter = Router();
 
 const published = { status: "published" };
 const suggestionAttempts = new Map<string, { count: number; resetAt: number }>();
 const messageAttempts = new Map<string, { count: number; resetAt: number }>();
+const fanMessageAttempts = new Map<string, { count: number; resetAt: number }>();
 
 const limitAttempts = (store: Map<string, { count: number; resetAt: number }>, maxAttempts: number, error: string) => (
   req: Request,
@@ -44,7 +58,10 @@ const limitAttempts = (store: Map<string, { count: number; resetAt: number }>, m
 };
 const limitContactSuggestions = limitAttempts(suggestionAttempts, 5, "Too many suggestions. Please try again later.");
 const limitContactMessages = limitAttempts(messageAttempts, 3, "Too many messages. Please try again later.");
+const limitFanMessages = limitAttempts(fanMessageAttempts, 3, "Too many messages. Please try again later.");
 const hashIp = (value?: string) => (value ? createHash("sha256").update(value).digest("hex") : undefined);
+const hashToken = (value: string) => createHash("sha256").update(value).digest("hex");
+const dayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
 publicRouter.get(
   "/home",
@@ -164,6 +181,106 @@ publicRouter.get(
   asyncRoute(async (_req, res) => {
     const resources = await ResourceLink.find(published).sort({ priority: 1, type: 1, title: 1 });
     res.json({ resources });
+  })
+);
+
+publicRouter.get(
+  "/fan-messages",
+  asyncRoute(async (_req, res) => {
+    const messages = await FanMessage.find({ status: "visible" })
+      .populate("authorId", "displayName email")
+      .sort({ verifiedAt: -1, createdAt: -1 })
+      .limit(200);
+    res.json({ messages });
+  })
+);
+
+publicRouter.post(
+  "/fan-messages",
+  limitFanMessages,
+  validateBody(fanMessageSchema),
+  asyncRoute(async (req, res) => {
+    if (req.body.website) return res.status(204).send();
+
+    if (req.user) {
+      const message = await FanMessage.create({
+        displayName: req.body.displayName || req.user.displayName || "",
+        message: req.body.message,
+        authorId: req.user._id,
+        status: "visible",
+        anonymous: false,
+        verifiedAt: new Date(),
+        ipHash: hashIp(req.ip),
+        userAgent: req.get("user-agent")?.slice(0, 300)
+      });
+      return res.status(201).json({ message, published: true });
+    }
+
+    if (!req.body.email) {
+      return res.status(400).json({ error: "Email is required for anonymous messages" });
+    }
+
+    const token = randomBytes(32).toString("base64url");
+    const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    const message = await FanMessage.create({
+      displayName: req.body.displayName,
+      email: req.body.email,
+      message: req.body.message,
+      status: "pending",
+      anonymous: true,
+      tokenHash: hashToken(token),
+      tokenExpiresAt,
+      ipHash: hashIp(req.ip),
+      userAgent: req.get("user-agent")?.slice(0, 300)
+    });
+    const link = `${getRequestBaseUrl(req)}/fan-messages/verify?token=${encodeURIComponent(token)}`;
+    await sendFanMessageVerificationEmail(req.body.email, link);
+
+    res.status(201).json({
+      message,
+      published: false,
+      verificationLink: isProduction || isEmailConfigured() ? undefined : link
+    });
+  })
+);
+
+publicRouter.post(
+  "/fan-messages/verify",
+  validateBody(verifyFanMessageSchema),
+  asyncRoute(async (req, res) => {
+    const message = await FanMessage.findOneAndUpdate(
+      {
+        tokenHash: hashToken(req.body.token),
+        status: "pending",
+        tokenExpiresAt: { $gt: new Date() }
+      },
+      {
+        status: "visible",
+        verifiedAt: new Date(),
+        $unset: { tokenHash: "", tokenExpiresAt: "" }
+      },
+      { new: true }
+    );
+    if (!message) return res.status(400).json({ error: "Verification link is invalid or expired" });
+    res.json({ message });
+  })
+);
+
+publicRouter.post(
+  "/traffic",
+  validateBody(trafficEventSchema),
+  asyncRoute(async (req, res) => {
+    const visitorHash = hashIp(`${req.ip ?? ""}:${req.get("user-agent") ?? ""}:${dayKey()}`);
+    await SiteTraffic.updateOne(
+      { dateKey: dayKey(), path: req.body.path },
+      {
+        $inc: { views: 1 },
+        $addToSet: { visitorHashes: visitorHash },
+        $set: { lastSeenAt: new Date() }
+      },
+      { upsert: true }
+    );
+    res.status(204).send();
   })
 );
 

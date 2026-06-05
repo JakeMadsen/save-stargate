@@ -9,6 +9,7 @@ import {
   contactTargetSchema,
   inviteUserSchema,
   moderateCommentSchema,
+  moderateFanMessageSchema,
   petitionSchema,
   reviewContactSuggestionSchema,
   reviewContactMessageSchema,
@@ -20,20 +21,25 @@ import {
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { asyncRoute } from "../utils/asyncRoute.js";
+import { getRequestBaseUrl } from "../utils/requestUrl.js";
 import { hasRole, canManageRole } from "../auth/permissions.js";
 import { slugify } from "../utils/slug.js";
 import { audit } from "../services/audit.js";
-import { createInviteLink } from "../services/authTokens.js";
+import { createEmailVerificationLink, createInviteLink } from "../services/authTokens.js";
 import { isEmailConfigured, sendTestEmail, verifyEmailSettings } from "../services/email.js";
+import { isProduction } from "../config.js";
 import { syncOnePetition } from "../services/petitionSync.js";
 import { Comment } from "../models/Comment.js";
 import { CommunityTopic } from "../models/CommunityTopic.js";
 import { ContactMessage } from "../models/ContactMessage.js";
 import { ContactTarget } from "../models/ContactTarget.js";
 import { ContactSuggestion } from "../models/ContactSuggestion.js";
+import { FanMessage } from "../models/FanMessage.js";
+import { LoginToken } from "../models/LoginToken.js";
 import { Petition } from "../models/Petition.js";
 import { PetitionSnapshot } from "../models/PetitionSnapshot.js";
 import { ResourceLink } from "../models/ResourceLink.js";
+import { SiteTraffic } from "../models/SiteTraffic.js";
 import { UpdatePost } from "../models/UpdatePost.js";
 import { User } from "../models/User.js";
 import { AuditEvent } from "../models/AuditEvent.js";
@@ -157,17 +163,31 @@ const crudRoutes = (options: {
 adminRouter.get(
   "/dashboard",
   asyncRoute(async (_req, res) => {
-    const [petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, newContactMessages] = await Promise.all([
+    const since7 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString().slice(0, 10);
+    const [petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, newContactMessages, pendingFanMessages, traffic7Days] = await Promise.all([
       Petition.countDocuments({ status: "active" }),
       Petition.countDocuments({ syncStatus: "failed" }),
       Comment.countDocuments({ reportCount: { $gt: 0 }, status: "visible" }),
       Comment.countDocuments({ status: "hidden" }),
       UpdatePost.countDocuments({ status: "draft" }),
       Comment.find().sort({ createdAt: -1 }).limit(8).populate("authorId", "email displayName"),
-      ContactMessage.countDocuments({ status: "new" })
+      ContactMessage.countDocuments({ status: "new" }),
+      FanMessage.countDocuments({ status: "pending" }),
+      SiteTraffic.aggregate([{ $match: { dateKey: { $gte: since7 } } }, { $group: { _id: null, views: { $sum: "$views" } } }])
     ]);
     const pendingContactSuggestions = await ContactSuggestion.countDocuments({ status: "pending" });
-    res.json({ petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, pendingContactSuggestions, newContactMessages });
+    res.json({
+      petitionCount,
+      failedSyncs,
+      reportedComments,
+      hiddenComments,
+      draftUpdates,
+      recentComments,
+      pendingContactSuggestions,
+      newContactMessages,
+      pendingFanMessages,
+      traffic7Days: traffic7Days[0]?.views ?? 0
+    });
   })
 );
 
@@ -180,6 +200,45 @@ adminRouter.post(
     const imageUrl = `/uploads/contacts/${req.file.filename}`;
     await audit(req, "upload-contact-image", "contact-image", undefined, { fileName: req.file.filename, imageUrl });
     res.status(201).json({ imageUrl, fileName: req.file.filename });
+  })
+);
+
+adminRouter.get(
+  "/traffic",
+  asyncRoute(async (_req, res) => {
+    const since30 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 29).toISOString().slice(0, 10);
+    const docs = await SiteTraffic.find({ dateKey: { $gte: since30 } }).sort({ dateKey: -1, views: -1 }).lean();
+    const totals = docs.reduce(
+      (acc, item) => {
+        acc.views += item.views ?? 0;
+        for (const visitor of item.visitorHashes ?? []) acc.visitors.add(visitor);
+        return acc;
+      },
+      { views: 0, visitors: new Set<string>() }
+    );
+    const byDay = [...docs.reduce((map, item) => {
+      const current = map.get(item.dateKey) ?? { dateKey: item.dateKey, views: 0, visitors: new Set<string>() };
+      current.views += item.views ?? 0;
+      for (const visitor of item.visitorHashes ?? []) current.visitors.add(visitor);
+      map.set(item.dateKey, current);
+      return map;
+    }, new Map<string, { dateKey: string; views: number; visitors: Set<string> }>()).values()]
+      .map((item) => ({ dateKey: item.dateKey, views: item.views, visitors: item.visitors.size }))
+      .sort((left, right) => right.dateKey.localeCompare(left.dateKey));
+    const byPath = [...docs.reduce((map, item) => {
+      const lastSeenAt = item.lastSeenAt ? new Date(item.lastSeenAt) : undefined;
+      const current = map.get(item.path) ?? { path: item.path, views: 0, visitors: new Set<string>(), lastSeenAt };
+      current.views += item.views ?? 0;
+      for (const visitor of item.visitorHashes ?? []) current.visitors.add(visitor);
+      if (!current.lastSeenAt || (lastSeenAt && lastSeenAt > current.lastSeenAt)) current.lastSeenAt = lastSeenAt;
+      map.set(item.path, current);
+      return map;
+    }, new Map<string, { path: string; views: number; visitors: Set<string>; lastSeenAt?: Date }>()).values()]
+      .map((item) => ({ path: item.path, views: item.views, visitors: item.visitors.size, lastSeenAt: item.lastSeenAt }))
+      .sort((left, right) => right.views - left.views)
+      .slice(0, 20);
+
+    res.json({ totalViews: totals.views, totalVisitors: totals.visitors.size, byDay, byPath });
   })
 );
 
@@ -370,6 +429,40 @@ adminRouter.get(
   })
 );
 
+adminRouter.get(
+  "/fan-messages",
+  asyncRoute(async (_req, res) => {
+    const messages = await FanMessage.find()
+      .populate("authorId", "email displayName")
+      .sort({ status: 1, createdAt: -1 })
+      .limit(300);
+    res.json({ messages });
+  })
+);
+
+adminRouter.patch(
+  "/fan-messages/:id",
+  requireRole("moderator"),
+  validateBody(moderateFanMessageSchema),
+  asyncRoute(async (req, res) => {
+    const message = await FanMessage.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+    if (!message) return res.status(404).json({ error: "Fan message not found" });
+    await audit(req, "moderate-fan-message", "fanMessage", message._id, { status: req.body.status });
+    res.json({ message });
+  })
+);
+
+adminRouter.delete(
+  "/fan-messages/:id",
+  requireRole("admin"),
+  asyncRoute(async (req, res) => {
+    const message = await FanMessage.findByIdAndDelete(req.params.id);
+    if (!message) return res.status(404).json({ error: "Fan message not found" });
+    await audit(req, "delete-fan-message", "fanMessage", message._id);
+    res.json({ ok: true });
+  })
+);
+
 adminRouter.patch(
   "/moderation/comments/:id",
   validateBody(moderateCommentSchema),
@@ -422,11 +515,27 @@ adminRouter.post(
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-    const invite = await createInviteLink({ email: req.body.email, role: req.body.role, invitedBy: req.user!._id });
+    const invite = await createInviteLink({ email: req.body.email, role: req.body.role, invitedBy: req.user!._id, baseUrl: getRequestBaseUrl(req) });
     await audit(req, "invite", "user", user._id, { role: req.body.role });
     const data = user.toObject();
     delete data.passwordHash;
     res.status(201).json({ user: data, inviteLink: invite.link, expiresAt: invite.expiresAt });
+  })
+);
+
+adminRouter.post(
+  "/users/:id/resend-verification",
+  requireRole("admin"),
+  asyncRoute(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.role !== "user" || user.status !== "pending") {
+      return res.status(400).json({ error: "Only pending public users can be verified this way" });
+    }
+
+    const verification = await createEmailVerificationLink(user.email, getRequestBaseUrl(req));
+    await audit(req, "resend-verification", "user", user._id);
+    res.json({ ok: true, verificationLink: isProduction || isEmailConfigured() ? undefined : verification.link });
   })
 );
 
@@ -449,6 +558,31 @@ adminRouter.patch(
     const data = user.toObject();
     delete data.passwordHash;
     res.json({ user: data });
+  })
+);
+
+adminRouter.delete(
+  "/users/:id",
+  requireRole("admin"),
+  asyncRoute(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (String(user._id) === String(req.user!._id)) {
+      return res.status(400).json({ error: "You cannot delete your own account here" });
+    }
+    if (!hasRole(req.user!.role, user.role) || user.role === "owner") {
+      return res.status(403).json({ error: "Cannot delete that user" });
+    }
+
+    await audit(req, "delete-user", "user", user._id, { email: user.email, role: user.role, status: user.status });
+    await Promise.all([
+      Comment.deleteMany({ authorId: user._id }),
+      Comment.updateMany({ "reports.userId": user._id }, { $pull: { reports: { userId: user._id } } }),
+      FanMessage.updateMany({ authorId: user._id }, { $unset: { authorId: "" }, $set: { anonymous: true } }),
+      LoginToken.deleteMany({ email: user.email }),
+      user.deleteOne()
+    ]);
+    res.json({ ok: true });
   })
 );
 

@@ -11,6 +11,7 @@ export const createInviteLink = async (params: {
   email: string;
   role?: Exclude<Role, "owner">;
   invitedBy?: Types.ObjectId;
+  baseUrl?: string;
 }) => {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
@@ -24,12 +25,12 @@ export const createInviteLink = async (params: {
     expiresAt
   });
 
-  const link = `${config.appUrl}/invite/accept?token=${encodeURIComponent(token)}`;
+  const link = `${params.baseUrl ?? config.appUrl}/invite/accept?token=${encodeURIComponent(token)}`;
   await sendInviteEmail(params.email, link);
   return { link, expiresAt };
 };
 
-export const createEmailVerificationLink = async (email: string) => {
+export const createEmailVerificationLink = async (email: string, baseUrl?: string) => {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
@@ -49,7 +50,7 @@ export const createEmailVerificationLink = async (email: string) => {
     expiresAt
   });
 
-  const link = `${config.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  const link = `${baseUrl ?? config.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
   await sendVerificationEmail(email, link);
   return { link, expiresAt };
 };

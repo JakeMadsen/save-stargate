@@ -5,6 +5,7 @@ import { App } from "./ui/App.js";
 import { AdminPage } from "./ui/pages/AdminPage.js";
 import { CommunityDetailPage, CommunityPage } from "./ui/pages/CommunityPage.js";
 import { ContactsPage } from "./ui/pages/ContactsPage.js";
+import { FanMessagesPage } from "./ui/pages/FanMessagesPage.js";
 import { HomePage } from "./ui/pages/HomePage.js";
 import { AcceptInvitePage, LoginPage, SignupPage, VerifyEmailPage } from "./ui/pages/LoginPage.js";
 import { PetitionsPage } from "./ui/pages/PetitionsPage.js";
@@ -25,6 +26,8 @@ const router = createBrowserRouter([
       { path: "contacts", element: <ContactsPage /> },
       { path: "community", element: <CommunityPage /> },
       { path: "community/:slug", element: <CommunityDetailPage /> },
+      { path: "fan-messages", element: <FanMessagesPage /> },
+      { path: "fan-messages/verify", element: <FanMessagesPage /> },
       { path: "resources", element: <ResourcesPage /> },
       { path: "write-us", element: <WriteUsPage /> },
       { path: "login", element: <LoginPage /> },

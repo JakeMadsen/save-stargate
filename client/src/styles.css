@@ -994,6 +994,222 @@ blockquote {
   gap: 1rem;
 }
 
+.user-admin-panel {
+  gap: 1.2rem;
+}
+
+.user-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 220px) minmax(150px, 220px);
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.user-search div {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 0.75rem;
+  background: var(--input-bg);
+}
+
+.user-search input {
+  border: 0;
+  padding-left: 0;
+  background: transparent;
+}
+
+.user-list {
+  gap: 0.8rem;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto minmax(280px, 0.95fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.user-identity {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.user-identity strong,
+.user-identity span,
+.user-identity small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.user-identity span,
+.user-identity small {
+  color: var(--text-muted);
+}
+
+.user-avatar {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--muted-button-bg);
+  color: var(--blue);
+}
+
+.user-avatar.role-owner,
+.user-avatar.role-admin {
+  color: var(--amber);
+}
+
+.user-status-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: center;
+}
+
+.status-pill,
+.role-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.status-pill.active {
+  color: var(--teal);
+  border-color: rgba(14, 125, 139, 0.35);
+}
+
+.status-pill.pending,
+.status-pill.invited {
+  color: var(--amber);
+  border-color: rgba(192, 121, 19, 0.35);
+}
+
+.status-pill.banned {
+  color: var(--red);
+  border-color: rgba(199, 62, 69, 0.35);
+}
+
+.user-controls {
+  display: grid;
+  grid-template-columns: minmax(105px, 1fr) minmax(105px, 1fr);
+  gap: 0.55rem;
+}
+
+.user-controls button {
+  grid-column: span 1;
+}
+
+.fan-messages-page {
+  max-width: 1180px;
+}
+
+.fan-message-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.fan-message-form {
+  position: sticky;
+  top: 5.5rem;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--muted-button-bg);
+}
+
+.segmented-control button {
+  justify-content: center;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.segmented-control button.active {
+  background: var(--card-bg);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+.fan-message-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.fan-message-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.fan-message-card p {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.03rem;
+  line-height: 1.65;
+}
+
+.fan-message-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+}
+
+.traffic-panel {
+  gap: 1rem;
+}
+
+.admin-table {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-table-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 90px 90px minmax(150px, 0.75fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-table.compact .admin-table-row {
+  grid-template-columns: minmax(160px, 1fr) 90px 90px;
+}
+
+.admin-table-head {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-table-row span {
+  overflow-wrap: anywhere;
+}
+
 .write-us-page {
   max-width: 980px;
 }
@@ -1311,6 +1527,9 @@ blockquote {
   .contact-option-row,
   .contact-link-grid,
   .suggestion-form-grid,
+  .fan-message-layout,
+  .user-row,
+  .user-toolbar,
   .card-grid.two,
   .card-grid.three {
     grid-template-columns: 1fr;
@@ -1328,6 +1547,27 @@ blockquote {
   .contact-target-row,
   .contact-target-summary,
   .inbox-card-header {
+    grid-template-columns: 1fr;
+  }
+
+  .user-status-stack {
+    justify-content: flex-start;
+  }
+
+  .user-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .fan-message-form {
+    position: static;
+  }
+
+  .fan-message-card div {
+    display: grid;
+  }
+
+  .admin-table-row,
+  .admin-table.compact .admin-table-row {
     grid-template-columns: 1fr;
   }
 

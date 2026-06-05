@@ -7,6 +7,7 @@ let mongod: MongoMemoryServer;
 let app: ReturnType<typeof import("./app.js").createApp>;
 let User: typeof import("./models/User.js").User;
 let CommunityTopic: typeof import("./models/CommunityTopic.js").CommunityTopic;
+let FanMessage: typeof import("./models/FanMessage.js").FanMessage;
 let createInviteLink: typeof import("./services/authTokens.js").createInviteLink;
 let hashPassword: typeof import("./services/passwords.js").hashPassword;
 
@@ -20,6 +21,7 @@ beforeAll(async () => {
   const { createApp } = await import("./app.js");
   ({ User } = await import("./models/User.js"));
   ({ CommunityTopic } = await import("./models/CommunityTopic.js"));
+  ({ FanMessage } = await import("./models/FanMessage.js"));
   ({ createInviteLink } = await import("./services/authTokens.js"));
   ({ hashPassword } = await import("./services/passwords.js"));
   await mongoose.connect(process.env.MONGO_URI);
@@ -124,6 +126,8 @@ describe("app integration", () => {
 
     const signup = await agent
       .post("/api/auth/signup")
+      .set("Host", "savethegate.org")
+      .set("X-Forwarded-Proto", "https")
       .send({
         email: "fan@example.com",
         displayName: "Gate Fan",
@@ -132,6 +136,7 @@ describe("app integration", () => {
       .expect(201);
 
     expect(signup.body.verificationLink).toContain("/verify-email?token=");
+    expect(signup.body.verificationLink).toMatch(/^https:\/\/savethegate\.org\/verify-email\?token=/);
 
     await agent.post("/api/auth/login").send({ email: "fan@example.com", password: "public-password-123" }).expect(403);
 
@@ -165,5 +170,68 @@ describe("app integration", () => {
       .expect(200);
 
     await agent.get("/api/admin/dashboard").expect(200);
+  });
+
+  it("publishes anonymous fan messages only after email verification", async () => {
+    const response = await request(app)
+      .post("/api/public/fan-messages")
+      .set("Host", "savethegate.org")
+      .set("X-Forwarded-Proto", "https")
+      .send({
+        displayName: "Old school fan",
+        email: "story@example.com",
+        message: "Stargate was the show that made exploration feel hopeful, funny, and human every single week."
+      })
+      .expect(201);
+
+    expect(response.body.published).toBe(false);
+    expect(response.body.verificationLink).toMatch(/^https:\/\/savethegate\.org\/fan-messages\/verify\?token=/);
+    expect(await FanMessage.countDocuments({ status: "visible" })).toBe(0);
+
+    const token = new URL(response.body.verificationLink).searchParams.get("token");
+    await request(app).post("/api/public/fan-messages/verify").send({ token }).expect(200);
+
+    const messages = await request(app).get("/api/public/fan-messages").expect(200);
+    expect(messages.body.messages[0].displayName).toBe("Old school fan");
+  });
+
+  it("tracks page traffic for admins", async () => {
+    await User.create({
+      email: "traffic-owner@example.com",
+      role: "owner",
+      status: "active",
+      passwordHash: await hashPassword("owner-password-123")
+    });
+
+    await request(app).post("/api/public/traffic").send({ path: "/fan-messages" }).expect(204);
+
+    const agent = request.agent(app);
+    await agent.post("/api/auth/login").send({ email: "traffic-owner@example.com", password: "owner-password-123" }).expect(200);
+    const traffic = await agent.get("/api/admin/traffic").expect(200);
+
+    expect(traffic.body.totalViews).toBeGreaterThanOrEqual(1);
+    expect(traffic.body.byPath.some((item: any) => item.path === "/fan-messages")).toBe(true);
+  });
+
+  it("lets admins delete user accounts", async () => {
+    const owner = await User.create({
+      email: "delete-owner@example.com",
+      role: "owner",
+      status: "active",
+      passwordHash: await hashPassword("owner-password-123")
+    });
+    const member = await User.create({
+      email: "delete-me@example.com",
+      role: "user",
+      status: "active",
+      passwordHash: await hashPassword("member-password-123")
+    });
+    expect(owner.email).toBe("delete-owner@example.com");
+
+    const agent = request.agent(app);
+    await agent.post("/api/auth/login").send({ email: "delete-owner@example.com", password: "owner-password-123" }).expect(200);
+    await agent.delete(`/api/admin/users/${member._id}`).expect(200);
+
+    expect(await User.findById(member._id)).toBeNull();
   });
 });

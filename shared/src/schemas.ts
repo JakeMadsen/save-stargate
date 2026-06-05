@@ -24,6 +24,7 @@ export const contactLinkTypes = [
 export const contactSuggestionStatuses = ["pending", "approved", "rejected"] as const;
 export const contactMessageStatuses = ["new", "read", "replied", "archived"] as const;
 export const contactMessageCategories = ["general", "press", "volunteer", "resource", "technical", "other"] as const;
+export const fanMessageStatuses = ["pending", "visible", "hidden", "deleted"] as const;
 
 export const emailSchema = z.string().trim().email().toLowerCase();
 export const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "Expected Mongo object id");
@@ -175,6 +176,21 @@ export const contactMessageSchema = z.object({
   website: z.string().max(0).optional().or(z.literal(""))
 });
 
+export const fanMessageSchema = z.object({
+  displayName: z.string().trim().min(2).max(80).optional().or(z.literal("")),
+  email: emailSchema.optional().or(z.literal("")),
+  message: z.string().trim().min(20).max(4000),
+  website: z.string().max(0).optional().or(z.literal(""))
+});
+
+export const verifyFanMessageSchema = z.object({
+  token: z.string().min(20)
+});
+
+export const moderateFanMessageSchema = z.object({
+  status: z.enum(fanMessageStatuses)
+});
+
 export const reviewContactMessageSchema = z.object({
   status: z.enum(contactMessageStatuses),
   adminNote: z.string().trim().max(1500).optional().or(z.literal(""))
@@ -207,6 +223,10 @@ export const moderateCommentSchema = z.object({
   status: z.enum(commentStatuses)
 });
 
+export const trafficEventSchema = z.object({
+  path: z.string().trim().min(1).max(180).regex(/^\/[A-Za-z0-9/_?.=&%#:+-]*$/)
+});
+
 export const resourceLinkSchema = z.object({
   title: z.string().trim().min(2).max(140),
   type: z.enum(resourceTypes).default("other"),
@@ -228,3 +248,4 @@ export type ContactLinkType = (typeof contactLinkTypes)[number];
 export type ContactSuggestionStatus = (typeof contactSuggestionStatuses)[number];
 export type ContactMessageStatus = (typeof contactMessageStatuses)[number];
 export type ContactMessageCategory = (typeof contactMessageCategories)[number];
+export type FanMessageStatus = (typeof fanMessageStatuses)[number];
