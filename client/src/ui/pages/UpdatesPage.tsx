@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api.js";
-import { CommentThread, MarkdownView, UpdateCard, type Comment, type UpdatePost } from "../components.js";
+import { CommentThread, FeaturedUpdateCard, MarkdownView, UpdateCard, type Comment, type UpdatePost } from "../components.js";
 
 export const UpdatesPage = () => {
   const [updates, setUpdates] = useState<UpdatePost[]>([]);
+  const [featuredUpdate, ...olderUpdates] = updates;
 
   useEffect(() => {
     api<{ updates: UpdatePost[] }>("/api/public/updates").then((data) => setUpdates(data.updates));
@@ -17,9 +18,23 @@ export const UpdatesPage = () => {
         <h1>Updates</h1>
         <p>New links, petition changes, contact updates, and notes from the site.</p>
       </div>
-      <div className="card-grid two">
-        {updates.map((update) => <UpdateCard key={update._id} update={update} />)}
-      </div>
+      {featuredUpdate ? (
+        <>
+          <FeaturedUpdateCard update={featuredUpdate} />
+          {olderUpdates.length > 0 && (
+            <div className="updates-archive">
+              <div className="section-heading">
+                <span>Earlier updates</span>
+              </div>
+              <div className="card-grid two">
+                {olderUpdates.map((update) => <UpdateCard key={update._id} update={update} />)}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="empty">No campaign updates yet.</p>
+      )}
     </section>
   );
 };

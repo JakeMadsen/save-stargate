@@ -8,9 +8,13 @@ export type Petition = {
   title: string;
   url: string;
   description: string;
+  imageUrl?: string;
   status: string;
   currentCount: number;
   goalCount: number;
+  latestUpdateTitle?: string;
+  latestUpdateBody?: string;
+  latestUpdateAt?: string;
   displayOrder?: number;
   lastSyncedAt?: string;
   syncStatus?: string;
@@ -39,6 +43,12 @@ export type Comment = {
 };
 
 const formatCount = (value: number) => value.toLocaleString("en-US");
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(value));
 
 export const ProgressBar = ({ current, goal }: { current: number; goal: number }) => {
   const percent = goal > 0 ? Math.min(100, Math.round((current / goal) * 100)) : 0;
@@ -51,6 +61,11 @@ export const ProgressBar = ({ current, goal }: { current: number; goal: number }
 
 export const PetitionCard = ({ petition }: { petition: Petition }) => (
   <article className="card petition-card">
+    {petition.imageUrl && (
+      <div className="petition-card-image">
+        <img src={petition.imageUrl} alt="" loading="lazy" />
+      </div>
+    )}
     <div className="card-kicker">
       <RadioTower size={15} /> {petition.syncStatus ?? "tracked"}
     </div>
@@ -61,6 +76,14 @@ export const PetitionCard = ({ petition }: { petition: Petition }) => (
       <strong>{formatCount(petition.currentCount)}</strong>
       <span>{petition.goalCount > 0 ? `of ${formatCount(petition.goalCount)} signatures` : "verified signatures"}</span>
     </div>
+    {(petition.latestUpdateTitle || petition.latestUpdateBody) && (
+      <div className="petition-latest-update">
+        <span>Latest petition update</span>
+        {petition.latestUpdateTitle && <strong>{petition.latestUpdateTitle}</strong>}
+        {petition.latestUpdateAt && <small>{formatDate(petition.latestUpdateAt)}</small>}
+        {petition.latestUpdateBody && <p>{petition.latestUpdateBody}</p>}
+      </div>
+    )}
     <a className="text-link" href={petition.url} target="_blank" rel="noreferrer">
       Open petition <ExternalLink size={14} />
     </a>
@@ -78,6 +101,38 @@ export const UpdateCard = ({ update }: { update: UpdatePost }) => (
       {(update.tags ?? []).map((tag) => (
         <span key={tag}>{tag}</span>
       ))}
+    </div>
+  </article>
+);
+
+const updatePreview = (markdown: string) => {
+  const blocks = markdown
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .filter((block) => !block.startsWith("# "));
+  return blocks.slice(0, 4).join("\n\n");
+};
+
+export const FeaturedUpdateCard = ({ update }: { update: UpdatePost }) => (
+  <article className="card featured-update-card">
+    <div className="card-kicker">{update.pinned ? "Pinned update" : "Campaign update"}</div>
+    <h2>
+      <Link to={`/updates/${update.slug}`}>{update.title}</Link>
+    </h2>
+    <p className="lede">{update.summary}</p>
+    <div className="update-feature-body">
+      <MarkdownView markdown={updatePreview(update.bodyMarkdown) || update.summary} />
+    </div>
+    <div className="featured-update-footer">
+      <div className="tag-row">
+        {(update.tags ?? []).map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+      <Link className="text-link" to={`/updates/${update.slug}`}>
+        Read full update
+      </Link>
     </div>
   </article>
 );

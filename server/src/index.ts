@@ -15,7 +15,21 @@ if (publicUrl !== localUrl) {
 }
 console.log("");
 
-const app = createApp();
+let databaseAvailable = false;
+
+try {
+  await connectDatabase();
+  databaseAvailable = true;
+} catch (error) {
+  console.error("");
+  console.error("MongoDB connection failed.");
+  console.error("The public React app is still available, but API/admin features need MongoDB.");
+  console.error("Check MONGO_URI and Atlas network access, then restart npm start.");
+  console.error(error instanceof Error ? error.message : error);
+  console.error("");
+}
+
+const app = createApp({ databaseAvailable });
 const server = app.listen(config.port, () => {
   console.log("");
   console.log("Save The Gate is running.");
@@ -26,8 +40,8 @@ const server = app.listen(config.port, () => {
   console.log("");
 });
 
-connectDatabase()
-  .then(async () => {
+if (databaseAvailable) {
+  void (async () => {
     console.log("MongoDB connected. API, auth, admin tools, and petition sync are ready.");
     const petition = await ensurePrimaryPetition();
     const historical = await ensureHistoricalPetitions();
@@ -35,15 +49,8 @@ connectDatabase()
     console.log(`Current stored signatures: ${petition.currentCount.toLocaleString("en-US")}`);
     console.log(`Historical petitions listed: ${historical.length}`);
     startPetitionSyncScheduler();
-  })
-  .catch((error) => {
-    console.error("");
-    console.error("MongoDB connection failed.");
-    console.error("The public React app is still available, but API/admin features need MongoDB.");
-    console.error(`Set MONGO_URI in .env or start MongoDB, then restart npm start.`);
-    console.error(error instanceof Error ? error.message : error);
-    console.error("");
-  });
+  })();
+}
 
 const shutdown = () => {
   server.close(() => process.exit(0));

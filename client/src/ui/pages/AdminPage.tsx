@@ -138,14 +138,33 @@ const resources = [
       platform: "change.org",
       url: "",
       description: "",
+      imageUrl: "",
       status: "active",
       currentCount: 0,
       goalCount: 0,
+      latestUpdateTitle: "",
+      latestUpdateBody: "",
+      latestUpdateAt: "",
       displayOrder: 100,
       manualOverride: false,
       syncDisabledReason: ""
     },
-    fields: ["title", "platform", "url", "description", "status", "currentCount", "goalCount", "displayOrder", "manualOverride", "syncDisabledReason"]
+    fields: [
+      "title",
+      "platform",
+      "url",
+      "description",
+      "imageUrl",
+      "status",
+      "currentCount",
+      "goalCount",
+      "latestUpdateTitle",
+      "latestUpdateBody",
+      "latestUpdateAt",
+      "displayOrder",
+      "manualOverride",
+      "syncDisabledReason"
+    ]
   },
   {
     key: "contacts",

@@ -4,7 +4,7 @@ import { User } from "./models/User.js";
 
 export const connectDatabase = async () => {
   mongoose.set("strictQuery", true);
-  await mongoose.connect(config.mongoUri);
+  await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 8000 });
   await seedOwner();
 };
 
@@ -25,4 +25,3 @@ const seedOwner = async () => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 };
-

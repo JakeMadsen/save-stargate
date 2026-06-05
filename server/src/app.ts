@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import session from "express-session";
+import mongoose from "mongoose";
 import { config, isProduction } from "./config.js";
 import { attachUser } from "./middleware/auth.js";
 import { adminRouter } from "./routes/admin.js";
@@ -14,8 +15,16 @@ import { publicRouter } from "./routes/public.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const createApp = () => {
+export const createApp = (options: { databaseAvailable?: boolean } = {}) => {
   const app = express();
+  const databaseAvailable = options.databaseAvailable ?? mongoose.connection.readyState === 1;
+  const sessionStore = databaseAvailable
+    ? MongoStore.create({ client: mongoose.connection.getClient() as any })
+    : new session.MemoryStore();
+
+  sessionStore.on?.("error", (error) => {
+    console.error("Session store error:", error);
+  });
 
   app.use(
     cors({
@@ -31,7 +40,7 @@ export const createApp = () => {
       secret: config.sessionSecret,
       resave: false,
       saveUninitialized: false,
-      store: MongoStore.create({ mongoUrl: config.mongoUri }),
+      store: sessionStore,
       cookie: {
         httpOnly: true,
         sameSite: "lax",
@@ -45,13 +54,19 @@ export const createApp = () => {
   const uploadsDir = path.resolve(process.cwd(), "uploads");
   app.use("/uploads", express.static(uploadsDir));
 
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, database: databaseAvailable ? "connected" : "unavailable" });
+  });
+
+  if (!databaseAvailable) {
+    app.use("/api", (_req, res) => {
+      res.status(503).json({ error: "Database unavailable" });
+    });
+  }
+
   app.use("/api/auth", authRouter);
   app.use("/api/public", publicRouter);
   app.use("/api/admin", adminRouter);
-
-  app.get("/api/health", (_req, res) => {
-    res.json({ ok: true });
-  });
 
   if (isProduction) {
     const clientDir = path.resolve(__dirname, "../../client");

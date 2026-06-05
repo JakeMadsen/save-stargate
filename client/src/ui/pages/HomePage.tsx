@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api.js";
 import heroImage from "../../assets/banner.jpg";
-import { PetitionCard, UpdateCard, type Petition, type UpdatePost } from "../components.js";
+import { FeaturedUpdateCard, PetitionCard, type Petition, type UpdatePost } from "../components.js";
 
 type HomeData = {
   latestUpdate?: UpdatePost | null;
@@ -61,26 +61,26 @@ export const HomePage = () => {
         </div>
       </section>
 
-      <section className="section-grid">
-        <div>
-          <div className="section-heading">
-            <span>Current petitions</span>
-            <Link to="/petitions">View all</Link>
-          </div>
-          <div className="card-grid two">
-            {(data?.petitions ?? []).map((petition) => <PetitionCard key={petition._id} petition={petition} />)}
-          </div>
-        </div>
-        <aside className="signal-panel">
+      <section className="home-priority-grid">
+        <div className="home-update-panel">
           <div className="section-heading">
             <span>Latest update</span>
             <Link to="/updates">Feed</Link>
           </div>
           {data?.pinnedUpdate || data?.latestUpdate ? (
-            <UpdateCard update={(data.pinnedUpdate || data.latestUpdate)!} />
+            <FeaturedUpdateCard update={(data.pinnedUpdate || data.latestUpdate)!} />
           ) : (
             <p className="empty">No campaign updates yet.</p>
           )}
+        </div>
+        <aside className="home-petition-panel">
+          <div className="section-heading">
+            <span>Current petitions</span>
+            <Link to="/petitions">View all</Link>
+          </div>
+          <div className="card-grid">
+            {(data?.petitions ?? []).map((petition) => <PetitionCard key={petition._id} petition={petition} />)}
+          </div>
         </aside>
       </section>
 

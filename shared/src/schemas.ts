@@ -49,6 +49,18 @@ export const contactImageUrlSchema = z
       return false;
     }
   }, "Expected uploaded contact image path or https:// image link");
+export const petitionImageUrlSchema = z
+  .string()
+  .trim()
+  .refine((value) => {
+    if (/^\/uploads\/petitions\/[A-Za-z0-9._-]+$/.test(value)) return true;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Expected cached petition image path or https:// image link");
 
 export const loginRequestSchema = z.object({
   email: emailSchema,
@@ -89,9 +101,13 @@ export const petitionSchema = z.object({
   platform: z.string().trim().min(2).max(40).default("change.org"),
   url: z.string().trim().url(),
   description: z.string().trim().min(10).max(1200),
+  imageUrl: petitionImageUrlSchema.optional().or(z.literal("")),
   status: z.enum(petitionStatuses).default("active"),
   currentCount: z.coerce.number().int().min(0).default(0),
   goalCount: z.coerce.number().int().min(0).default(0),
+  latestUpdateTitle: z.string().trim().max(180).optional().or(z.literal("")),
+  latestUpdateBody: z.string().trim().max(1200).optional().or(z.literal("")),
+  latestUpdateAt: z.coerce.date().optional().or(z.literal("")),
   displayOrder: z.coerce.number().int().min(1).max(999).default(100),
   manualOverride: z.boolean().default(false),
   syncDisabledReason: z.string().trim().max(300).optional()
