@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, postJson } from "../../api.js";
+import { Seo } from "../Seo.js";
 
 type ContactLink = {
   label: string;
@@ -246,6 +247,11 @@ export const ContactsPage = () => {
 
   return (
     <section className="page-section">
+      <Seo
+        title="Who To Contact"
+        description="Public contact targets, company profiles, professional channels, and suggested messages for the Save The Gate campaign."
+        path="/contacts"
+      />
       <div className="page-title">
         <span>Contacts</span>
         <h1>Contact Directory</h1>

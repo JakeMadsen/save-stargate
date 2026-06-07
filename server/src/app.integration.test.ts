@@ -65,6 +65,25 @@ describe("app integration", () => {
     await request(app).get("/api/admin/dashboard").expect(401);
   });
 
+  it("serves robots and sitemap files for crawlers", async () => {
+    await CommunityTopic.create({
+      title: "Crawler visible topic",
+      slug: "crawler-visible-topic",
+      bodyMarkdown: "A published community topic.",
+      status: "published",
+      pinned: false
+    });
+
+    const robots = await request(app).get("/robots.txt").expect(200);
+    expect(robots.text).toContain("Sitemap:");
+    expect(robots.text).toContain("Disallow: /admin");
+
+    const sitemap = await request(app).get("/sitemap.xml").expect(200);
+    expect(sitemap.text).toContain("<urlset");
+    expect(sitemap.text).toContain("/petitions");
+    expect(sitemap.text).toContain("/community/crawler-visible-topic");
+  });
+
   it("reports missing SMTP settings when sending a test email", async () => {
     await User.create({
       email: "email-owner@example.com",
@@ -233,5 +252,26 @@ describe("app integration", () => {
     await agent.delete(`/api/admin/users/${member._id}`).expect(200);
 
     expect(await User.findById(member._id)).toBeNull();
+  });
+
+  it("prevents admins from deleting other admin accounts", async () => {
+    await User.create({
+      email: "limited-admin@example.com",
+      role: "admin",
+      status: "active",
+      passwordHash: await hashPassword("admin-password-123")
+    });
+    const otherAdmin = await User.create({
+      email: "other-admin@example.com",
+      role: "admin",
+      status: "active",
+      passwordHash: await hashPassword("admin-password-123")
+    });
+
+    const agent = request.agent(app);
+    await agent.post("/api/auth/login").send({ email: "limited-admin@example.com", password: "admin-password-123" }).expect(200);
+    await agent.delete(`/api/admin/users/${otherAdmin._id}`).expect(403);
+
+    expect(await User.findById(otherAdmin._id)).not.toBeNull();
   });
 });

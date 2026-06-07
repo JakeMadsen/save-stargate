@@ -14,6 +14,7 @@ import {
   reviewContactSuggestionSchema,
   reviewContactMessageSchema,
   resourceLinkSchema,
+  siteSettingsSchema,
   testEmailSchema,
   updatePostSchema,
   updateUserSchema
@@ -40,9 +41,11 @@ import { Petition } from "../models/Petition.js";
 import { PetitionSnapshot } from "../models/PetitionSnapshot.js";
 import { ResourceLink } from "../models/ResourceLink.js";
 import { SiteTraffic } from "../models/SiteTraffic.js";
+import { SiteSettings } from "../models/SiteSettings.js";
 import { UpdatePost } from "../models/UpdatePost.js";
 import { User } from "../models/User.js";
 import { AuditEvent } from "../models/AuditEvent.js";
+import { defaultSiteSettings } from "../defaultSiteSettings.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requireRole("moderator"));
@@ -164,16 +167,16 @@ adminRouter.get(
   "/dashboard",
   asyncRoute(async (_req, res) => {
     const since7 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString().slice(0, 10);
-    const [petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, newContactMessages, pendingFanMessages, traffic7Days] = await Promise.all([
+    const [petitionCount, failedSyncs, reportedComments, hiddenComments, draftUpdates, recentComments, newContactMessages, pendingFanMessages, traffic7DayVisitors] = await Promise.all([
       Petition.countDocuments({ status: "active" }),
       Petition.countDocuments({ syncStatus: "failed" }),
       Comment.countDocuments({ reportCount: { $gt: 0 }, status: "visible" }),
       Comment.countDocuments({ status: "hidden" }),
       UpdatePost.countDocuments({ status: "draft" }),
-      Comment.find().sort({ createdAt: -1 }).limit(8).populate("authorId", "email displayName"),
+      Comment.find({ status: { $ne: "deleted" } }).sort({ createdAt: -1 }).limit(8).populate("authorId", "email displayName"),
       ContactMessage.countDocuments({ status: "new" }),
       FanMessage.countDocuments({ status: "pending" }),
-      SiteTraffic.aggregate([{ $match: { dateKey: { $gte: since7 } } }, { $group: { _id: null, views: { $sum: "$views" } } }])
+      SiteTraffic.distinct("visitorHashes", { dateKey: { $gte: since7 } })
     ]);
     const pendingContactSuggestions = await ContactSuggestion.countDocuments({ status: "pending" });
     res.json({
@@ -186,7 +189,7 @@ adminRouter.get(
       pendingContactSuggestions,
       newContactMessages,
       pendingFanMessages,
-      traffic7Days: traffic7Days[0]?.views ?? 0
+      traffic7Days: traffic7DayVisitors.length
     });
   })
 );
@@ -206,8 +209,17 @@ adminRouter.post(
 adminRouter.get(
   "/traffic",
   asyncRoute(async (_req, res) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const since7 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString().slice(0, 10);
     const since30 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 29).toISOString().slice(0, 10);
     const docs = await SiteTraffic.find({ dateKey: { $gte: since30 } }).sort({ dateKey: -1, views: -1 }).lean();
+    const collectVisitors = (items: typeof docs) => {
+      const visitors = new Set<string>();
+      for (const item of items) {
+        for (const visitor of item.visitorHashes ?? []) visitors.add(visitor);
+      }
+      return visitors;
+    };
     const totals = docs.reduce(
       (acc, item) => {
         acc.views += item.views ?? 0;
@@ -216,6 +228,10 @@ adminRouter.get(
       },
       { views: 0, visitors: new Set<string>() }
     );
+    const todayDocs = docs.filter((item) => item.dateKey === today);
+    const sevenDayDocs = docs.filter((item) => item.dateKey >= since7);
+    const todayVisitors = collectVisitors(todayDocs);
+    const sevenDayVisitors = collectVisitors(sevenDayDocs);
     const byDay = [...docs.reduce((map, item) => {
       const current = map.get(item.dateKey) ?? { dateKey: item.dateKey, views: 0, visitors: new Set<string>() };
       current.views += item.views ?? 0;
@@ -235,10 +251,43 @@ adminRouter.get(
       return map;
     }, new Map<string, { path: string; views: number; visitors: Set<string>; lastSeenAt?: Date }>()).values()]
       .map((item) => ({ path: item.path, views: item.views, visitors: item.visitors.size, lastSeenAt: item.lastSeenAt }))
-      .sort((left, right) => right.views - left.views)
+      .sort((left, right) => right.visitors - left.visitors || right.views - left.views)
       .slice(0, 20);
 
-    res.json({ totalViews: totals.views, totalVisitors: totals.visitors.size, byDay, byPath });
+    res.json({
+      todayVisitors: todayVisitors.size,
+      visitors7Days: sevenDayVisitors.size,
+      visitors30Days: totals.visitors.size,
+      views30Days: totals.views,
+      totalViews: totals.views,
+      totalVisitors: totals.visitors.size,
+      byDay,
+      byPath
+    });
+  })
+);
+
+adminRouter.get(
+  "/settings",
+  requireRole("admin"),
+  asyncRoute(async (_req, res) => {
+    const settings = await SiteSettings.findOne({ key: "main" }).lean();
+    res.json({ settings: { ...defaultSiteSettings, ...(settings ?? {}) } });
+  })
+);
+
+adminRouter.put(
+  "/settings",
+  requireRole("admin"),
+  validateBody(siteSettingsSchema),
+  asyncRoute(async (req, res) => {
+    const settings = await SiteSettings.findOneAndUpdate(
+      { key: "main" },
+      { ...req.body, key: "main", updatedBy: req.user!._id },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    await audit(req, "update", "site-settings", settings._id);
+    res.json({ settings });
   })
 );
 
@@ -420,6 +469,7 @@ adminRouter.get(
   "/moderation/comments",
   asyncRoute(async (_req, res) => {
     const comments = await Comment.find({
+      status: { $ne: "deleted" },
       $or: [{ reportCount: { $gt: 0 } }, { status: { $ne: "visible" } }]
     })
       .populate("authorId", "email displayName status")
@@ -549,7 +599,7 @@ adminRouter.patch(
     if (req.body.role && !canManageRole(req.user!.role, req.body.role)) {
       return res.status(403).json({ error: "Cannot assign that role" });
     }
-    if (!hasRole(req.user!.role, user.role) || user.role === "owner") {
+    if (user.role === "owner" || !canManageRole(req.user!.role, user.role)) {
       return res.status(403).json({ error: "Cannot modify that user" });
     }
     Object.assign(user, req.body);
@@ -570,7 +620,7 @@ adminRouter.delete(
     if (String(user._id) === String(req.user!._id)) {
       return res.status(400).json({ error: "You cannot delete your own account here" });
     }
-    if (!hasRole(req.user!.role, user.role) || user.role === "owner") {
+    if (user.role === "owner" || !canManageRole(req.user!.role, user.role)) {
       return res.status(403).json({ error: "Cannot delete that user" });
     }
 

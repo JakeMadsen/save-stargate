@@ -1,9 +1,10 @@
-import { ArrowRight, ChevronLeft, ChevronRight, Heart, Mail, Megaphone, Target, Users } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Heart, Mail, Megaphone, Sparkles, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api.js";
 import heroImage from "../../assets/banner.jpg";
 import { FeaturedUpdateCard, PetitionCard, type Petition, type UpdatePost } from "../components.js";
+import { Seo } from "../Seo.js";
 
 type HomeData = {
   latestUpdate?: UpdatePost | null;
@@ -12,6 +13,64 @@ type HomeData = {
   contacts: Array<{ _id: string; name: string; kind?: "entity" | "person"; organization: string; role: string; publicContactUrl: string; imageUrl?: string }>;
   resources: Array<{ _id: string; title: string; type: string; url: string }>;
   fanMessages?: Array<{ _id: string; displayName?: string; message: string; verifiedAt?: string; createdAt: string }>;
+  settings?: HomeSettings;
+};
+
+type HomeSettings = {
+  homeSeoTitle: string;
+  homeSeoDescription: string;
+  heroEyebrow: string;
+  heroTitle: string;
+  heroBody: string;
+  heroPrimaryLabel: string;
+  heroPrimaryPath: string;
+  heroSecondaryLabel: string;
+  heroSecondaryPath: string;
+  actionOneTitle: string;
+  actionOneBody: string;
+  actionTwoTitle: string;
+  actionTwoBody: string;
+  actionThreeTitle: string;
+  actionThreeBody: string;
+  campaignProducerNames: string[];
+  campaignCopy: string;
+  campaignHashtags: string[];
+  siteInboxKicker: string;
+  siteInboxTitle: string;
+  siteInboxBody: string;
+  siteInboxButtonLabel: string;
+  latestUpdateTitle: string;
+  currentPetitionsTitle: string;
+  contactSectionTitle: string;
+};
+
+const defaultHomeSettings: HomeSettings = {
+  homeSeoTitle: "Save The Gate",
+  homeSeoDescription: "Save The Gate is a fan-run Stargate campaign tracking petitions, public contacts, updates, fan voices, and community action.",
+  heroEyebrow: "Stargate fans are organizing",
+  heroTitle: "Save The Gate",
+  heroBody: "Amazon is walking away from new Stargate before it even gets a chance. Sign the petition, use the contact list, and help show there is still an audience here.",
+  heroPrimaryLabel: "Sign the petitions",
+  heroPrimaryPath: "/petitions",
+  heroSecondaryLabel: "Join the discussion",
+  heroSecondaryPath: "/community",
+  actionOneTitle: "Watch the numbers",
+  actionOneBody: "Live petition counts and older fan campaigns in one place.",
+  actionTwoTitle: "Find contacts",
+  actionTwoBody: "Public company profiles, work emails, and professional links.",
+  actionThreeTitle: "Follow updates",
+  actionThreeBody: "New posts, contact changes, and useful next steps.",
+  campaignProducerNames: ["Martin Gero", "Brad Wright", "Joseph Mallozzi"],
+  campaignCopy:
+    "Martin Gero, Brad Wright, and Joseph Mallozzi were confirmed. That is why fans got excited. This did not sound like a random brand reboot with a Stargate label slapped on it. It sounded like the first real chance in years for someone to open the gate with people in the room who actually know what made it work.\n\nCancelling it before it had a fair shot feels absurd, so the point here is simple: keep the mistake visible. Sign the petition, use the public contact channels, and leave a fan message if Stargate meant something to you. Quiet disappointment is easy to ignore. A fanbase that keeps showing up is harder to wave away.",
+  campaignHashtags: ["#SaveTheGate", "#GerosGate", "#Stargate"],
+  siteInboxKicker: "Site inbox",
+  siteInboxTitle: "Have something we should know?",
+  siteInboxBody: "Send resources, corrections, press notes, or offers to help. Until campaign email is fully set up, messages go straight into the admin inbox here.",
+  siteInboxButtonLabel: "Write us",
+  latestUpdateTitle: "Latest update",
+  currentPetitionsTitle: "Current petitions",
+  contactSectionTitle: "Who to contact"
 };
 
 const contactAnchor = (contact: { _id: string }) => `/contacts#contact-${contact._id}`;
@@ -78,6 +137,8 @@ const FanVoiceCarousel = ({ messages }: { messages: NonNullable<HomeData["fanMes
 
 export const HomePage = () => {
   const [data, setData] = useState<HomeData | null>(null);
+  const settings = { ...defaultHomeSettings, ...(data?.settings ?? {}) };
+  const campaignParagraphs = settings.campaignCopy.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
 
   useEffect(() => {
     api<HomeData>("/api/public/home").then(setData);
@@ -85,20 +146,22 @@ export const HomePage = () => {
 
   return (
     <>
+      <Seo
+        title={settings.homeSeoTitle}
+        description={settings.homeSeoDescription}
+        path="/"
+      />
       <section className="hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(4,10,14,.96), rgba(4,10,14,.74) 42%, rgba(4,10,14,.2)), url(${heroImage})` }}>
         <div className="hero-copy">
-          <div className="eyebrow"><Megaphone size={18} /> Stargate fans are organizing</div>
-          <h1>Save The Gate</h1>
-          <p>
-            Amazon is walking away from new Stargate before it even gets a chance. Sign the petition, use the contact list,
-            and help show there is still an audience here.
-          </p>
+          <div className="eyebrow"><Megaphone size={18} /> {settings.heroEyebrow}</div>
+          <h1>{settings.heroTitle}</h1>
+          <p>{settings.heroBody}</p>
           <div className="hero-actions">
-            <Link className="primary-button" to="/petitions">
-              Sign the petitions <ArrowRight size={18} />
+            <Link className="primary-button" to={settings.heroPrimaryPath}>
+              {settings.heroPrimaryLabel} <ArrowRight size={18} />
             </Link>
-            <Link className="secondary-button" to="/community">
-              Join the discussion
+            <Link className="secondary-button" to={settings.heroSecondaryPath}>
+              {settings.heroSecondaryLabel}
             </Link>
           </div>
         </div>
@@ -107,36 +170,54 @@ export const HomePage = () => {
       <section className="action-band">
         <div>
           <Target size={22} />
-          <strong>Watch the numbers</strong>
-          <span>Live petition counts and older fan campaigns in one place.</span>
+          <strong>{settings.actionOneTitle}</strong>
+          <span>{settings.actionOneBody}</span>
         </div>
         <div>
           <Users size={22} />
-          <strong>Find contacts</strong>
-          <span>Public company profiles, work emails, and professional links.</span>
+          <strong>{settings.actionTwoTitle}</strong>
+          <span>{settings.actionTwoBody}</span>
         </div>
         <div>
           <Megaphone size={22} />
-          <strong>Follow updates</strong>
-          <span>New posts, contact changes, and useful next steps.</span>
+          <strong>{settings.actionThreeTitle}</strong>
+          <span>{settings.actionThreeBody}</span>
+        </div>
+      </section>
+
+      <section className="campaign-message-band">
+        <div className="campaign-message-inner">
+          <div className="campaign-message-copy">
+            <div className="producer-strip" aria-label="Confirmed creative team">
+              {settings.campaignProducerNames.map((name, index) => (
+                <span key={name}>{index === 0 && <Sparkles size={15} />} {name}</span>
+              ))}
+            </div>
+            {campaignParagraphs.map((paragraph) => (
+              <p className="campaign-lede" key={paragraph}>{paragraph}</p>
+            ))}
+            <div className="hashtag-row" aria-label="Campaign hashtags">
+              {settings.campaignHashtags.map((tag) => <span key={tag}>{tag}</span>)}
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="content-band contact-cta-band">
         <div>
-          <div className="card-kicker"><Mail size={16} /> Site inbox</div>
-          <h2>Have something we should know?</h2>
-          <p>Send resources, corrections, press notes, or offers to help. Until campaign email is fully set up, messages go straight into the admin inbox here.</p>
+          <div className="card-kicker"><Mail size={16} /> {settings.siteInboxKicker}</div>
+          <h2>{settings.siteInboxTitle}</h2>
+          <p>{settings.siteInboxBody}</p>
         </div>
         <Link className="primary-button" to="/write-us">
-          Write us <ArrowRight size={18} />
+          {settings.siteInboxButtonLabel} <ArrowRight size={18} />
         </Link>
       </section>
 
       <section className="home-priority-grid">
         <div className="home-update-panel">
           <div className="section-heading">
-            <span>Latest update</span>
+            <span>{settings.latestUpdateTitle}</span>
             <Link to="/updates">Feed</Link>
           </div>
           {data?.pinnedUpdate || data?.latestUpdate ? (
@@ -147,7 +228,7 @@ export const HomePage = () => {
         </div>
         <aside className="home-petition-panel">
           <div className="section-heading">
-            <span>Current petitions</span>
+            <span>{settings.currentPetitionsTitle}</span>
             <Link to="/petitions">View all</Link>
           </div>
           <div className="card-grid">
@@ -158,7 +239,7 @@ export const HomePage = () => {
 
       <section className="content-band">
         <div className="section-heading">
-          <span>Who to contact</span>
+          <span>{settings.contactSectionTitle}</span>
           <Link to="/contacts">Full list</Link>
         </div>
         <div className="card-grid three">

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, postJson } from "../../api.js";
 import { useAuth } from "../AuthContext.js";
+import { Seo } from "../Seo.js";
 
 type FanMessage = {
   _id: string;
@@ -74,6 +75,11 @@ export const FanMessagesPage = () => {
 
   return (
     <section className="page-section fan-messages-page">
+      <Seo
+        title="Why Stargate Matters"
+        description="Fan messages about why Stargate matters and why the community wants the franchise back on screen."
+        path="/fan-messages"
+      />
       <div className="page-title">
         <span><Heart size={17} /> Fan voices</span>
         <h1>Why Stargate Matters</h1>

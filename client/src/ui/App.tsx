@@ -1,10 +1,19 @@
 import { LogIn, LogOut, Moon, Shield, Sparkles, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { api } from "../api.js";
 import { AuthProvider, isStaff, useAuth } from "./AuthContext.js";
 
 type Theme = "light" | "dark";
+type ShellSettings = {
+  navBrand: string;
+  footerNote: string;
+};
 const themeKey = "save-the-gate-theme";
+const defaultShellSettings: ShellSettings = {
+  navBrand: "Save The Gate",
+  footerNote: "Fan-run site. No official affiliation."
+};
 
 const getInitialTheme = (): Theme => {
   if (typeof window === "undefined") return "light";
@@ -17,6 +26,7 @@ const Shell = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [settings, setSettings] = useState<ShellSettings>(defaultShellSettings);
   const nav = [
     ["Updates", "/updates"],
     ["Petitions", "/petitions"],
@@ -27,6 +37,12 @@ const Shell = () => {
     ["Write Us", "/write-us"]
   ];
   const isDark = theme === "dark";
+
+  useEffect(() => {
+    api<{ settings: ShellSettings }>("/api/public/settings")
+      .then((data) => setSettings({ ...defaultShellSettings, ...data.settings }))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -47,7 +63,7 @@ const Shell = () => {
       <header className="site-header">
         <Link className="brand" to="/" aria-label="Save The Gate home">
           <span className="brand-mark"><Sparkles size={18} /></span>
-          <span>Save The Gate</span>
+          <span>{settings.navBrand}</span>
         </Link>
         <nav className="main-nav">
           {nav.map(([label, href]) => (
@@ -86,7 +102,7 @@ const Shell = () => {
         <Outlet />
       </main>
       <footer className="site-footer">
-        <span>Fan-run site. No official affiliation.</span>
+        <span>{settings.footerNote}</span>
         <div className="footer-links">
           <Link to="/signup">Sign up</Link>
           <Link to="/fan-messages">Fan voices</Link>

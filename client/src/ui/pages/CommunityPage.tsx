@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api.js";
 import { CommentThread, MarkdownView, type Comment } from "../components.js";
+import { Seo } from "../Seo.js";
 
 type Topic = {
   _id: string;
@@ -22,6 +23,11 @@ export const CommunityPage = () => {
 
   return (
     <section className="page-section">
+      <Seo
+        title="Fan Discussion"
+        description="Save The Gate community topics for Stargate fans coordinating ideas, links, comments, and campaign action."
+        path="/community"
+      />
       <div className="page-title">
         <span>Community</span>
         <h1>Fan Discussion</h1>
@@ -54,6 +60,11 @@ export const CommunityDetailPage = () => {
 
   return (
     <section className="article-layout">
+      <Seo
+        title={data.topic.title}
+        description="A Save The Gate community discussion topic for Stargate fans."
+        path={`/community/${data.topic.slug}`}
+      />
       <Link className="text-link" to="/community">Back to community</Link>
       <article className="article">
         <div className="card-kicker">Community topic</div>

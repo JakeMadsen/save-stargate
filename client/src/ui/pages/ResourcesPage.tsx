@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../api.js";
+import { Seo } from "../Seo.js";
 
 type ResourceLinkType =
   | "website"
@@ -76,6 +77,11 @@ export const ResourcesPage = () => {
 
   return (
     <section className="page-section">
+      <Seo
+        title="Stargate Fan Resources"
+        description="Stargate creators, fan sites, YouTube channels, podcasts, social pages, and resources worth following."
+        path="/resources"
+      />
       <div className="page-title">
         <span>Fan links</span>
         <h1>Fan Pages and Creators</h1>

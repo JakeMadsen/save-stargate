@@ -1,6 +1,7 @@
 import { Mail, Send } from "lucide-react";
 import { useState } from "react";
 import { postJson } from "../../api.js";
+import { Seo } from "../Seo.js";
 
 export const WriteUsPage = () => {
   const [sent, setSent] = useState(false);
@@ -30,6 +31,11 @@ export const WriteUsPage = () => {
 
   return (
     <section className="page-section write-us-page">
+      <Seo
+        title="Write Us"
+        description="Send Save The Gate corrections, resources, press notes, technical issues, or offers to help."
+        path="/write-us"
+      />
       <div className="page-title">
         <span><Mail size={17} /> Write us</span>
         <h1>Contact Save The Gate</h1>

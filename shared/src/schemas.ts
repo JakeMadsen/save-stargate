@@ -227,6 +227,37 @@ export const trafficEventSchema = z.object({
   path: z.string().trim().min(1).max(180).regex(/^\/[A-Za-z0-9/_?.=&%#:+-]*$/)
 });
 
+export const siteSettingsSchema = z.object({
+  siteName: z.string().trim().min(2).max(80).default("Save The Gate"),
+  navBrand: z.string().trim().min(2).max(80).default("Save The Gate"),
+  footerNote: z.string().trim().min(2).max(180).default("Fan-run site. No official affiliation."),
+  homeSeoTitle: z.string().trim().min(2).max(90).default("Save The Gate"),
+  homeSeoDescription: z.string().trim().min(20).max(220),
+  heroEyebrow: z.string().trim().min(2).max(100),
+  heroTitle: z.string().trim().min(2).max(90),
+  heroBody: z.string().trim().min(20).max(600),
+  heroPrimaryLabel: z.string().trim().min(2).max(40),
+  heroPrimaryPath: z.string().trim().min(1).max(120).regex(/^\/[A-Za-z0-9/_?.=&%#:+-]*$/),
+  heroSecondaryLabel: z.string().trim().min(2).max(40),
+  heroSecondaryPath: z.string().trim().min(1).max(120).regex(/^\/[A-Za-z0-9/_?.=&%#:+-]*$/),
+  actionOneTitle: z.string().trim().min(2).max(80),
+  actionOneBody: z.string().trim().min(5).max(180),
+  actionTwoTitle: z.string().trim().min(2).max(80),
+  actionTwoBody: z.string().trim().min(5).max(180),
+  actionThreeTitle: z.string().trim().min(2).max(80),
+  actionThreeBody: z.string().trim().min(5).max(180),
+  campaignProducerNames: z.array(z.string().trim().min(2).max(80)).min(1).max(8),
+  campaignCopy: z.string().trim().min(20).max(2000),
+  campaignHashtags: z.array(z.string().trim().min(2).max(40)).min(1).max(8),
+  siteInboxKicker: z.string().trim().min(2).max(80),
+  siteInboxTitle: z.string().trim().min(2).max(100),
+  siteInboxBody: z.string().trim().min(10).max(400),
+  siteInboxButtonLabel: z.string().trim().min(2).max(40),
+  latestUpdateTitle: z.string().trim().min(2).max(60),
+  currentPetitionsTitle: z.string().trim().min(2).max(60),
+  contactSectionTitle: z.string().trim().min(2).max(60)
+});
+
 export const resourceLinkSchema = z.object({
   title: z.string().trim().min(2).max(140),
   type: z.enum(resourceTypes).default("other"),
@@ -261,3 +292,4 @@ export type ContactSuggestionStatus = (typeof contactSuggestionStatuses)[number]
 export type ContactMessageStatus = (typeof contactMessageStatuses)[number];
 export type ContactMessageCategory = (typeof contactMessageCategories)[number];
 export type FanMessageStatus = (typeof fanMessageStatuses)[number];
+export type SiteSettings = z.infer<typeof siteSettingsSchema>;

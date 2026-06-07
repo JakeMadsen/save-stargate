@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api.js";
 import { CommentThread, FeaturedUpdateCard, MarkdownView, UpdateCard, type Comment, type UpdatePost } from "../components.js";
+import { Seo } from "../Seo.js";
 
 export const UpdatesPage = () => {
   const [updates, setUpdates] = useState<UpdatePost[]>([]);
@@ -13,6 +14,11 @@ export const UpdatesPage = () => {
 
   return (
     <section className="page-section">
+      <Seo
+        title="Campaign Updates"
+        description="Latest Save The Gate campaign updates, petition changes, contact notes, and community action."
+        path="/updates"
+      />
       <div className="page-title">
         <span>Updates</span>
         <h1>Updates</h1>
@@ -52,6 +58,11 @@ export const UpdateDetailPage = () => {
 
   return (
     <section className="article-layout">
+      <Seo
+        title={data.update.title}
+        description={data.update.summary}
+        path={`/updates/${data.update.slug}`}
+      />
       <Link className="text-link" to="/updates">Back to updates</Link>
       <article className="article">
         <div className="card-kicker">Campaign update</div>

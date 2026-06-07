@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { postJson } from "../../api.js";
 import { isStaff, useAuth } from "../AuthContext.js";
+import { Seo } from "../Seo.js";
 
 export const LoginPage = () => {
   const [error, setError] = useState("");
@@ -27,6 +28,7 @@ export const LoginPage = () => {
 
   return (
     <section className="auth-panel">
+      <Seo title="Log In" description="Log in to Save The Gate." path="/login" noindex />
       <div className="card form-card">
         <div className="card-kicker"><KeyRound size={16} /> Account login</div>
         <h1>Log in</h1>
@@ -85,6 +87,7 @@ export const SignupPage = () => {
 
   return (
     <section className="auth-panel">
+      <Seo title="Sign Up" description="Create a Save The Gate account to join community discussions." path="/signup" noindex />
       <div className="card form-card">
         <div className="card-kicker"><UserPlus size={16} /> Join the discussion</div>
         <h1>Sign up</h1>
@@ -134,6 +137,7 @@ export const VerifyEmailPage = () => {
 
   return (
     <section className="auth-panel">
+      <Seo title="Verify Email" description="Verify your Save The Gate email address." path="/verify-email" noindex />
       <div className="card form-card">
         <div className="card-kicker"><MailCheck size={16} /> Email verification</div>
         <h1>{ok ? "Verified" : "Verify email"}</h1>
@@ -173,6 +177,7 @@ export const AcceptInvitePage = () => {
 
   return (
     <section className="auth-panel">
+      <Seo title="Accept Invite" description="Accept a Save The Gate staff invite." path="/invite/accept" noindex />
       <div className="card form-card">
         <div className="card-kicker"><MailCheck size={16} /> Staff invite</div>
         <h1>Create password</h1>

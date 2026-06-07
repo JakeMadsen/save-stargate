@@ -9,7 +9,7 @@ import {
   trafficEventSchema,
   verifyFanMessageSchema
 } from "../../../shared/src/index.js";
-import { isProduction } from "../config.js";
+import { config, isProduction } from "../config.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { asyncRoute } from "../utils/asyncRoute.js";
@@ -23,9 +23,11 @@ import { Petition } from "../models/Petition.js";
 import { PetitionSnapshot } from "../models/PetitionSnapshot.js";
 import { ResourceLink } from "../models/ResourceLink.js";
 import { SiteTraffic } from "../models/SiteTraffic.js";
+import { SiteSettings } from "../models/SiteSettings.js";
 import { UpdatePost } from "../models/UpdatePost.js";
 import { isEmailConfigured, sendFanMessageVerificationEmail } from "../services/email.js";
 import { getRequestBaseUrl } from "../utils/requestUrl.js";
+import { defaultSiteSettings } from "../defaultSiteSettings.js";
 
 export const publicRouter = Router();
 
@@ -64,9 +66,17 @@ const hashToken = (value: string) => createHash("sha256").update(value).digest("
 const dayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
 publicRouter.get(
+  "/settings",
+  asyncRoute(async (_req, res) => {
+    const settings = await SiteSettings.findOne({ key: "main" }).lean();
+    res.json({ settings: { ...defaultSiteSettings, ...(settings ?? {}) } });
+  })
+);
+
+publicRouter.get(
   "/home",
   asyncRoute(async (_req, res) => {
-    const [latestUpdate, pinnedUpdate, petitions, contacts, resources, fanMessages] = await Promise.all([
+    const [latestUpdate, pinnedUpdate, petitions, contacts, resources, fanMessages, settings] = await Promise.all([
       UpdatePost.findOne(published).sort({ publishedAt: -1, createdAt: -1 }),
       UpdatePost.findOne({ ...published, pinned: true }).sort({ publishedAt: -1, createdAt: -1 }),
       Petition.find({ status: "active" }).sort({ displayOrder: 1, currentCount: -1 }).limit(4),
@@ -76,10 +86,11 @@ publicRouter.get(
         { $match: { status: "visible" } },
         { $sample: { size: 8 } },
         { $project: { displayName: 1, message: 1, verifiedAt: 1, createdAt: 1 } }
-      ])
+      ]),
+      SiteSettings.findOne({ key: "main" }).lean()
     ]);
 
-    res.json({ latestUpdate, pinnedUpdate, petitions, contacts, resources, fanMessages });
+    res.json({ latestUpdate, pinnedUpdate, petitions, contacts, resources, fanMessages, settings: { ...defaultSiteSettings, ...(settings ?? {}) } });
   })
 );
 
@@ -275,7 +286,7 @@ publicRouter.post(
   "/traffic",
   validateBody(trafficEventSchema),
   asyncRoute(async (req, res) => {
-    const visitorHash = hashIp(`${req.ip ?? ""}:${req.get("user-agent") ?? ""}:${dayKey()}`);
+    const visitorHash = hashIp(`${config.sessionSecret}:${req.ip ?? ""}:${req.get("user-agent") ?? ""}`);
     await SiteTraffic.updateOne(
       { dateKey: dayKey(), path: req.body.path },
       {

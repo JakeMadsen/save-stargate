@@ -2,6 +2,7 @@ import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../api.js";
 import { PetitionCard, type Petition } from "../components.js";
+import { Seo } from "../Seo.js";
 
 export const PetitionsPage = () => {
   const [petitions, setPetitions] = useState<Petition[]>([]);
@@ -12,6 +13,11 @@ export const PetitionsPage = () => {
 
   return (
     <section className="page-section">
+      <Seo
+        title="Stargate Petitions"
+        description="Track the current Save The Gate petition and older Stargate fan petitions showing long-running demand for the franchise."
+        path="/petitions"
+      />
       <div className="page-title">
         <span>Petitions</span>
         <h1>Petitions</h1>

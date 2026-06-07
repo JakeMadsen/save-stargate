@@ -7,16 +7,20 @@ import {
   Edit3,
   ExternalLink,
   Facebook,
+  FileText,
   Globe,
   Heart,
+  Home,
   Instagram,
   Linkedin,
   Mail,
   MapPin,
+  MessageSquare,
   Music2,
   Plus,
   RefreshCw,
   Search,
+  Settings,
   Shield,
   ShieldCheck,
   Trash2,
@@ -24,6 +28,7 @@ import {
   Upload,
   UserCheck,
   UserPlus,
+  UsersRound,
   UserX,
   Youtube
 } from "lucide-react";
@@ -31,10 +36,25 @@ import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, deleteJson, patchJson, postForm, postJson, putJson } from "../../api.js";
 import { isStaff, useAuth } from "../AuthContext.js";
+import { Seo } from "../Seo.js";
 
 type AdminItem = Record<string, any> & { _id: string };
 type UserStat = [label: string, value: number, Icon: LucideIcon];
 type ManageableRole = "admin" | "moderator" | "user";
+type AdminTab =
+  | "dashboard"
+  | "site-copy"
+  | "updates"
+  | "petitions"
+  | "contacts"
+  | "topics"
+  | "resources"
+  | "moderation"
+  | "fan-messages"
+  | "traffic"
+  | "contact-messages"
+  | "contact-suggestions"
+  | "users";
 type ContactLinkType =
   | "website"
   | "email"
@@ -121,6 +141,75 @@ const ContactLinkIcon = ({ type }: { type: ContactLinkType }) => {
     </span>
   );
 };
+
+type SiteCopyFormValues = {
+  siteName: string;
+  navBrand: string;
+  footerNote: string;
+  homeSeoTitle: string;
+  homeSeoDescription: string;
+  heroEyebrow: string;
+  heroTitle: string;
+  heroBody: string;
+  heroPrimaryLabel: string;
+  heroPrimaryPath: string;
+  heroSecondaryLabel: string;
+  heroSecondaryPath: string;
+  actionOneTitle: string;
+  actionOneBody: string;
+  actionTwoTitle: string;
+  actionTwoBody: string;
+  actionThreeTitle: string;
+  actionThreeBody: string;
+  campaignProducerNames: string;
+  campaignCopy: string;
+  campaignHashtags: string;
+  siteInboxKicker: string;
+  siteInboxTitle: string;
+  siteInboxBody: string;
+  siteInboxButtonLabel: string;
+  latestUpdateTitle: string;
+  currentPetitionsTitle: string;
+  contactSectionTitle: string;
+};
+
+const siteCopyDefaults: SiteCopyFormValues = {
+  siteName: "Save The Gate",
+  navBrand: "Save The Gate",
+  footerNote: "Fan-run site. No official affiliation.",
+  homeSeoTitle: "Save The Gate",
+  homeSeoDescription: "Save The Gate is a fan-run Stargate campaign tracking petitions, public contacts, updates, fan voices, and community action.",
+  heroEyebrow: "Stargate fans are organizing",
+  heroTitle: "Save The Gate",
+  heroBody: "Amazon is walking away from new Stargate before it even gets a chance. Sign the petition, use the contact list, and help show there is still an audience here.",
+  heroPrimaryLabel: "Sign the petitions",
+  heroPrimaryPath: "/petitions",
+  heroSecondaryLabel: "Join the discussion",
+  heroSecondaryPath: "/community",
+  actionOneTitle: "Watch the numbers",
+  actionOneBody: "Live petition counts and older fan campaigns in one place.",
+  actionTwoTitle: "Find contacts",
+  actionTwoBody: "Public company profiles, work emails, and professional links.",
+  actionThreeTitle: "Follow updates",
+  actionThreeBody: "New posts, contact changes, and useful next steps.",
+  campaignProducerNames: "Martin Gero, Brad Wright, Joseph Mallozzi",
+  campaignCopy:
+    "Martin Gero, Brad Wright, and Joseph Mallozzi were confirmed. That is why fans got excited. This did not sound like a random brand reboot with a Stargate label slapped on it. It sounded like the first real chance in years for someone to open the gate with people in the room who actually know what made it work.\n\nCancelling it before it had a fair shot feels absurd, so the point here is simple: keep the mistake visible. Sign the petition, use the public contact channels, and leave a fan message if Stargate meant something to you. Quiet disappointment is easy to ignore. A fanbase that keeps showing up is harder to wave away.",
+  campaignHashtags: "#SaveTheGate, #GerosGate, #Stargate",
+  siteInboxKicker: "Site inbox",
+  siteInboxTitle: "Have something we should know?",
+  siteInboxBody: "Send resources, corrections, press notes, or offers to help. Until campaign email is fully set up, messages go straight into the admin inbox here.",
+  siteInboxButtonLabel: "Write us",
+  latestUpdateTitle: "Latest update",
+  currentPetitionsTitle: "Current petitions",
+  contactSectionTitle: "Who to contact"
+};
+
+const listFromText = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const resources = [
   {
@@ -306,6 +395,7 @@ const CrudPanel = ({ resource }: { resource: (typeof resources)[number] }) => {
   const [editing, setEditing] = useState<AdminItem | null>(null);
   const [values, setValues] = useState<Record<string, any>>(resource.defaults);
   const [error, setError] = useState("");
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const load = () => api<{ items: AdminItem[] }>(resource.path).then((data) => setItems(data.items));
 
@@ -317,6 +407,16 @@ const CrudPanel = ({ resource }: { resource: (typeof resources)[number] }) => {
 
   const change = (name: string, value: any) => setValues((current) => ({ ...current, [name]: value }));
 
+  const resetForm = () => {
+    setEditing(null);
+    setValues(resource.defaults);
+    setError("");
+  };
+
+  const scrollToEditor = () => {
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
   const startEdit = (item: AdminItem) => {
     setEditing(item);
     setValues({
@@ -325,6 +425,7 @@ const CrudPanel = ({ resource }: { resource: (typeof resources)[number] }) => {
       tags: Array.isArray(item.tags) ? item.tags.join(", ") : item.tags ?? "",
       linksJson: Array.isArray(item.links) ? JSON.stringify(item.links, null, 2) : "[]"
     });
+    scrollToEditor();
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -334,8 +435,7 @@ const CrudPanel = ({ resource }: { resource: (typeof resources)[number] }) => {
       const payload = normalizePayload(values);
       if (editing) await putJson(`${resource.path}/${editing._id}`, payload);
       else await postJson(resource.path, payload);
-      setEditing(null);
-      setValues(resource.defaults);
+      resetForm();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
@@ -353,8 +453,37 @@ const CrudPanel = ({ resource }: { resource: (typeof resources)[number] }) => {
   };
 
   return (
-    <section className="admin-panel">
-      <div className="admin-list admin-resource-list">
+    <section className="admin-panel content-admin-panel">
+      <div className="content-editor-row">
+        <div className="card content-editor-intro">
+          <span>{resource.title}</span>
+          <h2>{editing ? "Editing item" : "Create or edit"}</h2>
+          <p>{items.length} {items.length === 1 ? "item" : "items"} in this tool.</p>
+          <button type="button" className="secondary-button" onClick={() => { resetForm(); scrollToEditor(); }}>
+            <Plus size={16} /> New item
+          </button>
+        </div>
+
+        <form className="card admin-form admin-resource-form content-editor-form" ref={formRef} onSubmit={submit}>
+          <div className="section-heading">
+            <span>{editing ? "Edit" : "Create"} {resource.title}</span>
+            {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
+          </div>
+          <div className="admin-form-grid">
+            {resource.fields.map((field) => (
+              <Field key={field} name={field} value={values[field]} resourceKey={resource.key} onChange={change} />
+            ))}
+          </div>
+          <button type="submit"><Plus size={16} /> {editing ? "Save changes" : "Create"}</button>
+          {error && <p className="error">{error}</p>}
+        </form>
+      </div>
+
+      <div className="section-heading content-list-heading">
+        <span>{resource.title}</span>
+        <small>{items.length} total</small>
+      </div>
+      <div className="admin-list admin-resource-list content-item-list">
         {items.map((item) => (
           <article className="card compact-card admin-resource-row" key={item._id}>
             <div>
@@ -380,20 +509,6 @@ const CrudPanel = ({ resource }: { resource: (typeof resources)[number] }) => {
         ))}
         {items.length === 0 && <p className="empty">No {resource.title.toLowerCase()} yet.</p>}
       </div>
-
-      <form className="card admin-form admin-resource-form" onSubmit={submit}>
-        <div className="section-heading">
-          <span>{editing ? "Edit" : "Create"} {resource.title}</span>
-          {editing && <button type="button" className="ghost-button" onClick={() => { setEditing(null); setValues(resource.defaults); }}>Cancel</button>}
-        </div>
-        <div className="admin-form-grid">
-          {resource.fields.map((field) => (
-            <Field key={field} name={field} value={values[field]} resourceKey={resource.key} onChange={change} />
-          ))}
-        </div>
-        <button type="submit"><Plus size={16} /> {editing ? "Save changes" : "Create"}</button>
-        {error && <p className="error">{error}</p>}
-      </form>
     </section>
   );
 };
@@ -515,14 +630,152 @@ const ContactTargetsPanel = () => {
   };
 
   return (
-    <section className="contact-admin-panel">
-      <div className="section-heading contact-admin-heading">
-        <span>Contact targets</span>
-        <button type="button" className="secondary-button" onClick={createNew}>
-          <Plus size={16} /> New contact
-        </button>
+    <section className="contact-admin-panel content-admin-panel">
+      <div className="content-editor-row">
+        <div className="card content-editor-intro">
+          <span>Contact targets</span>
+          <h2>{editing ? editing.name : "Create or edit"}</h2>
+          <p>{items.length} public contacts, people, and entities in the directory.</p>
+          <button type="button" className="secondary-button" onClick={createNew}>
+            <Plus size={16} /> New contact
+          </button>
+        </div>
+
+        <form className="card admin-form contact-admin-form content-editor-form" ref={formRef} onSubmit={submit}>
+          <div className="section-heading">
+            <span>{editing ? `Edit ${editing.name}` : "Create Contact Target"}</span>
+            {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
+          </div>
+
+          <div className="contact-form-grid">
+            <label>
+              <span>Name</span>
+              <input value={values.name} onChange={(event) => change("name", event.target.value)} required />
+            </label>
+            <label>
+              <span>Type</span>
+              <select value={values.kind} onChange={(event) => change("kind", event.target.value as ContactFormValues["kind"])}>
+                <option value="entity">Entity</option>
+                <option value="person">Person</option>
+              </select>
+            </label>
+            <label>
+              <span>Organization</span>
+              <input value={values.organization} onChange={(event) => change("organization", event.target.value)} />
+            </label>
+            <label>
+              <span>Role</span>
+              <input value={values.role} onChange={(event) => change("role", event.target.value)} />
+            </label>
+            <label>
+              <span>Address</span>
+              <input value={values.address} onChange={(event) => change("address", event.target.value)} />
+            </label>
+            <label>
+              <span>Main contact link</span>
+              <input value={values.publicContactUrl} onChange={(event) => change("publicContactUrl", event.target.value)} placeholder="https://... or mailto:name@example.com" />
+            </label>
+            <label>
+              <span>Source link</span>
+              <input value={values.sourceUrl} onChange={(event) => change("sourceUrl", event.target.value)} placeholder="https://..." />
+            </label>
+            <div className="contact-image-field">
+              <span>Image</span>
+              <div className="contact-image-upload">
+                {values.imageUrl && (
+                  <div className="contact-image-current">
+                    <div className={`contact-target-thumb ${values.kind === "entity" ? "logo" : ""}`}>
+                      <img src={values.imageUrl} alt="" />
+                    </div>
+                    <div>
+                      <strong>Stored file</strong>
+                      <span>{values.imageUrl}</span>
+                    </div>
+                    <button className="icon-button danger" type="button" onClick={() => change("imageUrl", "")} title="Remove image">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )}
+                <label className="secondary-button contact-image-button">
+                  <Upload size={16} />
+                  {uploadingImage ? "Uploading..." : values.imageUrl ? "Replace image" : "Upload image"}
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={uploadContactImage} disabled={uploadingImage} />
+                </label>
+                {uploadError && <p className="error">{uploadError}</p>}
+              </div>
+            </div>
+            <label>
+              <span>Image source</span>
+              <input value={values.imageSourceUrl} onChange={(event) => change("imageSourceUrl", event.target.value)} placeholder="https://..." />
+            </label>
+            <label>
+              <span>Priority</span>
+              <input type="number" min={1} max={5} value={values.priority} onChange={(event) => change("priority", Number(event.target.value))} />
+            </label>
+            <label>
+              <span>Status</span>
+              <select value={values.status} onChange={(event) => change("status", event.target.value as ContactFormValues["status"])}>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            <span>Suggested message</span>
+            <textarea value={values.suggestedMessage} onChange={(event) => change("suggestedMessage", event.target.value)} required />
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea value={values.notes} onChange={(event) => change("notes", event.target.value)} />
+          </label>
+
+          <div className="contact-options-editor">
+            <div className="section-heading">
+              <span>Contact options</span>
+              <div className="add-contact-option">
+                <select value={newLinkType} onChange={(event) => setNewLinkType(event.target.value as ContactLinkType)}>
+                  {contactLinkOptions.map((option) => (
+                    <option key={option.type} value={option.type}>{option.label}</option>
+                  ))}
+                </select>
+                <button type="button" className="secondary-button" onClick={addContactOption}>
+                  <Plus size={16} /> Add contact option
+                </button>
+              </div>
+            </div>
+
+            <div className="contact-option-list">
+              {values.links.map((link, index) => (
+                <div className="contact-option-row" key={`${link.type}-${index}`}>
+                  <ContactLinkIcon type={link.type} />
+                  <select value={link.type} onChange={(event) => updateContactOption(index, { type: event.target.value as ContactLinkType })}>
+                    {contactLinkOptions.map((option) => (
+                      <option key={option.type} value={option.type}>{option.label}</option>
+                    ))}
+                  </select>
+                  <input value={link.label} onChange={(event) => updateContactOption(index, { label: event.target.value })} placeholder="Label" />
+                  <input value={link.url} onChange={(event) => updateContactOption(index, { url: event.target.value })} placeholder="https://... or mailto:name@example.com" />
+                  <button className="icon-button danger" type="button" onClick={() => removeContactOption(index)} title="Remove contact option">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              {values.links.length === 0 && <p className="empty">No contact options yet.</p>}
+            </div>
+          </div>
+
+          <button type="submit"><Plus size={16} /> {editing ? "Save contact target" : "Create contact target"}</button>
+          {error && <p className="error">{error}</p>}
+        </form>
       </div>
-      <div className="admin-list contact-target-list">
+
+      <div className="section-heading content-list-heading">
+        <span>Contact targets</span>
+        <small>{items.length} total</small>
+      </div>
+      <div className="admin-list contact-target-list content-item-list">
         {items.map((item) => (
           <article className="card compact-card contact-target-row" key={item._id}>
             <div className="contact-target-summary">
@@ -560,136 +813,8 @@ const ContactTargetsPanel = () => {
             </div>
           </article>
         ))}
+        {items.length === 0 && <p className="empty">No contact targets yet.</p>}
       </div>
-
-      <form className="card admin-form contact-admin-form" ref={formRef} onSubmit={submit}>
-        <div className="section-heading">
-          <span>{editing ? `Edit ${editing.name}` : "Create Contact Target"}</span>
-          {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
-        </div>
-
-        <div className="contact-form-grid">
-          <label>
-            <span>Name</span>
-            <input value={values.name} onChange={(event) => change("name", event.target.value)} required />
-          </label>
-          <label>
-            <span>Type</span>
-            <select value={values.kind} onChange={(event) => change("kind", event.target.value as ContactFormValues["kind"])}>
-              <option value="entity">Entity</option>
-              <option value="person">Person</option>
-            </select>
-          </label>
-          <label>
-            <span>Organization</span>
-            <input value={values.organization} onChange={(event) => change("organization", event.target.value)} />
-          </label>
-          <label>
-            <span>Role</span>
-            <input value={values.role} onChange={(event) => change("role", event.target.value)} />
-          </label>
-          <label>
-            <span>Address</span>
-            <input value={values.address} onChange={(event) => change("address", event.target.value)} />
-          </label>
-          <label>
-            <span>Main contact link</span>
-            <input value={values.publicContactUrl} onChange={(event) => change("publicContactUrl", event.target.value)} placeholder="https://... or mailto:name@example.com" />
-          </label>
-          <label>
-            <span>Source link</span>
-            <input value={values.sourceUrl} onChange={(event) => change("sourceUrl", event.target.value)} placeholder="https://..." />
-          </label>
-          <div className="contact-image-field">
-            <span>Image</span>
-            <div className="contact-image-upload">
-              {values.imageUrl && (
-                <div className="contact-image-current">
-                  <div className={`contact-target-thumb ${values.kind === "entity" ? "logo" : ""}`}>
-                    <img src={values.imageUrl} alt="" />
-                  </div>
-                  <div>
-                    <strong>Stored file</strong>
-                    <span>{values.imageUrl}</span>
-                  </div>
-                  <button className="icon-button danger" type="button" onClick={() => change("imageUrl", "")} title="Remove image">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              )}
-              <label className="secondary-button contact-image-button">
-                <Upload size={16} />
-                {uploadingImage ? "Uploading..." : values.imageUrl ? "Replace image" : "Upload image"}
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={uploadContactImage} disabled={uploadingImage} />
-              </label>
-              {uploadError && <p className="error">{uploadError}</p>}
-            </div>
-          </div>
-          <label>
-            <span>Image source</span>
-            <input value={values.imageSourceUrl} onChange={(event) => change("imageSourceUrl", event.target.value)} placeholder="https://..." />
-          </label>
-          <label>
-            <span>Priority</span>
-            <input type="number" min={1} max={5} value={values.priority} onChange={(event) => change("priority", Number(event.target.value))} />
-          </label>
-          <label>
-            <span>Status</span>
-            <select value={values.status} onChange={(event) => change("status", event.target.value as ContactFormValues["status"])}>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-        </div>
-
-        <label>
-          <span>Suggested message</span>
-          <textarea value={values.suggestedMessage} onChange={(event) => change("suggestedMessage", event.target.value)} required />
-        </label>
-        <label>
-          <span>Notes</span>
-          <textarea value={values.notes} onChange={(event) => change("notes", event.target.value)} />
-        </label>
-
-        <div className="contact-options-editor">
-          <div className="section-heading">
-            <span>Contact options</span>
-            <div className="add-contact-option">
-              <select value={newLinkType} onChange={(event) => setNewLinkType(event.target.value as ContactLinkType)}>
-                {contactLinkOptions.map((option) => (
-                  <option key={option.type} value={option.type}>{option.label}</option>
-                ))}
-              </select>
-              <button type="button" className="secondary-button" onClick={addContactOption}>
-                <Plus size={16} /> Add contact option
-              </button>
-            </div>
-          </div>
-
-          <div className="contact-option-list">
-            {values.links.map((link, index) => (
-              <div className="contact-option-row" key={`${link.type}-${index}`}>
-                <ContactLinkIcon type={link.type} />
-                <select value={link.type} onChange={(event) => updateContactOption(index, { type: event.target.value as ContactLinkType })}>
-                  {contactLinkOptions.map((option) => (
-                    <option key={option.type} value={option.type}>{option.label}</option>
-                  ))}
-                </select>
-                <input value={link.label} onChange={(event) => updateContactOption(index, { label: event.target.value })} placeholder="Label" />
-                <input value={link.url} onChange={(event) => updateContactOption(index, { url: event.target.value })} placeholder="https://... or mailto:name@example.com" />
-                <button className="icon-button danger" type="button" onClick={() => removeContactOption(index)} title="Remove contact option">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-            {values.links.length === 0 && <p className="empty">No contact options yet.</p>}
-          </div>
-        </div>
-
-        <button type="submit"><Plus size={16} /> {editing ? "Save contact target" : "Create contact target"}</button>
-        {error && <p className="error">{error}</p>}
-      </form>
     </section>
   );
 };
@@ -800,15 +925,113 @@ const ResourcesPanel = () => {
   };
 
   return (
-    <section className="contact-admin-panel resource-admin-panel">
-      <div className="section-heading contact-admin-heading">
-        <span>Resource links</span>
-        <button type="button" className="secondary-button" onClick={resetForm}>
-          <Plus size={16} /> New resource
-        </button>
+    <section className="contact-admin-panel resource-admin-panel content-admin-panel">
+      <div className="content-editor-row">
+        <div className="card content-editor-intro">
+          <span>Resource links</span>
+          <h2>{editing ? editing.title : "Create or edit"}</h2>
+          <p>{items.length} resource {items.length === 1 ? "entry" : "entries"} in the directory.</p>
+          <button type="button" className="secondary-button" onClick={() => { resetForm(); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+            <Plus size={16} /> New resource
+          </button>
+        </div>
+
+        <form className="card admin-form contact-admin-form content-editor-form" ref={formRef} onSubmit={submit}>
+          <div className="section-heading">
+            <span>{editing ? `Edit ${editing.title}` : "Create Resource"}</span>
+            {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
+          </div>
+
+          <div className="contact-form-grid">
+            <label>
+              <span>Title</span>
+              <input value={values.title} onChange={(event) => change("title", event.target.value)} required />
+            </label>
+            <label>
+              <span>Type</span>
+              <select value={values.type} onChange={(event) => change("type", event.target.value as ResourceFormValues["type"])}>
+                <option value="creator">Creator</option>
+                <option value="youtube">YouTube</option>
+                <option value="website">Website</option>
+                <option value="podcast">Podcast</option>
+                <option value="social">Social</option>
+                <option value="press">Press</option>
+                <option value="community">Community</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>
+              <span>Primary link</span>
+              <input value={values.url} onChange={(event) => change("url", event.target.value)} placeholder="Optional fallback link" />
+            </label>
+            <label>
+              <span>Priority</span>
+              <input type="number" min={1} max={10} value={values.priority} onChange={(event) => change("priority", Number(event.target.value))} />
+            </label>
+            <label>
+              <span>Status</span>
+              <select value={values.status} onChange={(event) => change("status", event.target.value as ResourceFormValues["status"])}>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+            <label>
+              <span>Tags</span>
+              <input value={values.tags} onChange={(event) => change("tags", event.target.value)} placeholder="creator, interview, podcast" />
+            </label>
+          </div>
+
+          <label>
+            <span>Description</span>
+            <textarea value={values.description} onChange={(event) => change("description", event.target.value)} required />
+          </label>
+
+          <div className="contact-options-editor">
+            <div className="section-heading">
+              <span>Resource links</span>
+              <div className="add-contact-option">
+                <select value={newLinkType} onChange={(event) => setNewLinkType(event.target.value as ContactLinkType)}>
+                  {contactLinkOptions.map((option) => (
+                    <option key={option.type} value={option.type}>{option.label}</option>
+                  ))}
+                </select>
+                <button type="button" className="secondary-button" onClick={addResourceLink}>
+                  <Plus size={16} /> Add resource link
+                </button>
+              </div>
+            </div>
+
+            <div className="contact-option-list">
+              {values.links.map((link, index) => (
+                <div className="contact-option-row" key={`${link.type}-${index}`}>
+                  <ContactLinkIcon type={link.type} />
+                  <select value={link.type} onChange={(event) => updateResourceLink(index, { type: event.target.value as ContactLinkType })}>
+                    {contactLinkOptions.map((option) => (
+                      <option key={option.type} value={option.type}>{option.label}</option>
+                    ))}
+                  </select>
+                  <input value={link.label} onChange={(event) => updateResourceLink(index, { label: event.target.value })} placeholder="Label" />
+                  <input value={link.url} onChange={(event) => updateResourceLink(index, { url: event.target.value })} placeholder="https://..." />
+                  <button className="icon-button danger" type="button" onClick={() => removeResourceLink(index)} title="Remove resource link">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              {values.links.length === 0 && <p className="empty">No resource links yet.</p>}
+            </div>
+          </div>
+
+          <button type="submit"><Plus size={16} /> {editing ? "Save resource" : "Create resource"}</button>
+          {error && <p className="error">{error}</p>}
+        </form>
       </div>
 
-      <div className="admin-list contact-target-list">
+      <div className="section-heading content-list-heading">
+        <span>Resource links</span>
+        <small>{items.length} total</small>
+      </div>
+      <div className="admin-list contact-target-list content-item-list">
         {items.map((item) => (
           <article className="card compact-card contact-target-row" key={item._id}>
             <div className="contact-target-summary">
@@ -841,97 +1064,224 @@ const ResourcesPanel = () => {
         ))}
         {items.length === 0 && <p className="empty">No resources yet.</p>}
       </div>
+    </section>
+  );
+};
 
-      <form className="card admin-form contact-admin-form" ref={formRef} onSubmit={submit}>
-        <div className="section-heading">
-          <span>{editing ? `Edit ${editing.title}` : "Create Resource"}</span>
-          {editing && <button type="button" className="ghost-button" onClick={resetForm}>Cancel</button>}
+const SiteCopyPanel = () => {
+  const [values, setValues] = useState<SiteCopyFormValues>(siteCopyDefaults);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api<{ settings: Record<string, any> }>("/api/admin/settings")
+      .then((data) => {
+        const settings = data.settings ?? {};
+        setValues({
+          ...siteCopyDefaults,
+          ...settings,
+          campaignProducerNames: Array.isArray(settings.campaignProducerNames)
+            ? settings.campaignProducerNames.join(", ")
+            : siteCopyDefaults.campaignProducerNames,
+          campaignHashtags: Array.isArray(settings.campaignHashtags)
+            ? settings.campaignHashtags.join(", ")
+            : siteCopyDefaults.campaignHashtags
+        });
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load site copy"));
+  }, []);
+
+  const change = <Key extends keyof SiteCopyFormValues>(key: Key, value: SiteCopyFormValues[Key]) => {
+    setValues((current) => ({ ...current, [key]: value }));
+  };
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    const payload = {
+      ...values,
+      campaignProducerNames: listFromText(values.campaignProducerNames),
+      campaignHashtags: listFromText(values.campaignHashtags)
+    };
+
+    try {
+      const result = await putJson<{ settings: Record<string, any> }>("/api/admin/settings", payload);
+      setValues({
+        ...values,
+        campaignProducerNames: Array.isArray(result.settings.campaignProducerNames)
+          ? result.settings.campaignProducerNames.join(", ")
+          : values.campaignProducerNames,
+        campaignHashtags: Array.isArray(result.settings.campaignHashtags)
+          ? result.settings.campaignHashtags.join(", ")
+          : values.campaignHashtags
+      });
+      setMessage("Site copy saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save site copy");
+    }
+  };
+
+  return (
+    <form className="admin-panel site-copy-panel" onSubmit={submit}>
+      <div className="admin-editor-header">
+        <div>
+          <span><Home size={17} /> Site Copy</span>
+          <h2>Front page text</h2>
+          <p>Edit the public-facing wording without touching code or seeded posts.</p>
         </div>
+        <button type="submit"><ShieldCheck size={16} /> Save site copy</button>
+      </div>
 
-        <div className="contact-form-grid">
+      {message && <p className="notice success">{message}</p>}
+      {error && <p className="error">{error}</p>}
+
+      <div className="settings-grid">
+        <section className="card settings-card">
+          <div className="section-heading"><span>Site shell</span></div>
+          <label>
+            <span>Site name</span>
+            <input value={values.siteName} onChange={(event) => change("siteName", event.target.value)} />
+          </label>
+          <label>
+            <span>Navbar brand</span>
+            <input value={values.navBrand} onChange={(event) => change("navBrand", event.target.value)} />
+          </label>
+          <label>
+            <span>Footer note</span>
+            <input value={values.footerNote} onChange={(event) => change("footerNote", event.target.value)} />
+          </label>
+        </section>
+
+        <section className="card settings-card">
+          <div className="section-heading"><span>SEO</span></div>
+          <label>
+            <span>Homepage SEO title</span>
+            <input value={values.homeSeoTitle} onChange={(event) => change("homeSeoTitle", event.target.value)} />
+          </label>
+          <label>
+            <span>Homepage description</span>
+            <textarea value={values.homeSeoDescription} onChange={(event) => change("homeSeoDescription", event.target.value)} />
+          </label>
+        </section>
+
+        <section className="card settings-card wide">
+          <div className="section-heading"><span>Hero</span></div>
+          <div className="admin-form-grid">
+            <label>
+              <span>Eyebrow</span>
+              <input value={values.heroEyebrow} onChange={(event) => change("heroEyebrow", event.target.value)} />
+            </label>
+            <label>
+              <span>Title</span>
+              <input value={values.heroTitle} onChange={(event) => change("heroTitle", event.target.value)} />
+            </label>
+            <label className="field-long">
+              <span>Body</span>
+              <textarea value={values.heroBody} onChange={(event) => change("heroBody", event.target.value)} />
+            </label>
+            <label>
+              <span>Primary button</span>
+              <input value={values.heroPrimaryLabel} onChange={(event) => change("heroPrimaryLabel", event.target.value)} />
+            </label>
+            <label>
+              <span>Primary path</span>
+              <input value={values.heroPrimaryPath} onChange={(event) => change("heroPrimaryPath", event.target.value)} />
+            </label>
+            <label>
+              <span>Secondary button</span>
+              <input value={values.heroSecondaryLabel} onChange={(event) => change("heroSecondaryLabel", event.target.value)} />
+            </label>
+            <label>
+              <span>Secondary path</span>
+              <input value={values.heroSecondaryPath} onChange={(event) => change("heroSecondaryPath", event.target.value)} />
+            </label>
+          </div>
+        </section>
+
+        <section className="card settings-card wide">
+          <div className="section-heading"><span>Action strip</span></div>
+          <div className="admin-form-grid">
+            <label>
+              <span>First title</span>
+              <input value={values.actionOneTitle} onChange={(event) => change("actionOneTitle", event.target.value)} />
+            </label>
+            <label className="field-long">
+              <span>First body</span>
+              <input value={values.actionOneBody} onChange={(event) => change("actionOneBody", event.target.value)} />
+            </label>
+            <label>
+              <span>Second title</span>
+              <input value={values.actionTwoTitle} onChange={(event) => change("actionTwoTitle", event.target.value)} />
+            </label>
+            <label className="field-long">
+              <span>Second body</span>
+              <input value={values.actionTwoBody} onChange={(event) => change("actionTwoBody", event.target.value)} />
+            </label>
+            <label>
+              <span>Third title</span>
+              <input value={values.actionThreeTitle} onChange={(event) => change("actionThreeTitle", event.target.value)} />
+            </label>
+            <label className="field-long">
+              <span>Third body</span>
+              <input value={values.actionThreeBody} onChange={(event) => change("actionThreeBody", event.target.value)} />
+            </label>
+          </div>
+        </section>
+
+        <section className="card settings-card wide">
+          <div className="section-heading"><span>Campaign block</span></div>
+          <label>
+            <span>Confirmed names</span>
+            <input value={values.campaignProducerNames} onChange={(event) => change("campaignProducerNames", event.target.value)} />
+          </label>
+          <label>
+            <span>Campaign copy</span>
+            <textarea className="large-textarea" value={values.campaignCopy} onChange={(event) => change("campaignCopy", event.target.value)} />
+          </label>
+          <label>
+            <span>Hashtags</span>
+            <input value={values.campaignHashtags} onChange={(event) => change("campaignHashtags", event.target.value)} />
+          </label>
+        </section>
+
+        <section className="card settings-card">
+          <div className="section-heading"><span>Inbox callout</span></div>
+          <label>
+            <span>Kicker</span>
+            <input value={values.siteInboxKicker} onChange={(event) => change("siteInboxKicker", event.target.value)} />
+          </label>
           <label>
             <span>Title</span>
-            <input value={values.title} onChange={(event) => change("title", event.target.value)} required />
+            <input value={values.siteInboxTitle} onChange={(event) => change("siteInboxTitle", event.target.value)} />
           </label>
           <label>
-            <span>Type</span>
-            <select value={values.type} onChange={(event) => change("type", event.target.value as ResourceFormValues["type"])}>
-              <option value="creator">Creator</option>
-              <option value="youtube">YouTube</option>
-              <option value="website">Website</option>
-              <option value="podcast">Podcast</option>
-              <option value="social">Social</option>
-              <option value="press">Press</option>
-              <option value="community">Community</option>
-              <option value="other">Other</option>
-            </select>
+            <span>Body</span>
+            <textarea value={values.siteInboxBody} onChange={(event) => change("siteInboxBody", event.target.value)} />
           </label>
           <label>
-            <span>Primary link</span>
-            <input value={values.url} onChange={(event) => change("url", event.target.value)} placeholder="Optional fallback link" />
+            <span>Button label</span>
+            <input value={values.siteInboxButtonLabel} onChange={(event) => change("siteInboxButtonLabel", event.target.value)} />
           </label>
-          <label>
-            <span>Priority</span>
-            <input type="number" min={1} max={10} value={values.priority} onChange={(event) => change("priority", Number(event.target.value))} />
-          </label>
-          <label>
-            <span>Status</span>
-            <select value={values.status} onChange={(event) => change("status", event.target.value as ResourceFormValues["status"])}>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-          <label>
-            <span>Tags</span>
-            <input value={values.tags} onChange={(event) => change("tags", event.target.value)} placeholder="creator, interview, podcast" />
-          </label>
-        </div>
+        </section>
 
-        <label>
-          <span>Description</span>
-          <textarea value={values.description} onChange={(event) => change("description", event.target.value)} required />
-        </label>
-
-        <div className="contact-options-editor">
-          <div className="section-heading">
-            <span>Resource links</span>
-            <div className="add-contact-option">
-              <select value={newLinkType} onChange={(event) => setNewLinkType(event.target.value as ContactLinkType)}>
-                {contactLinkOptions.map((option) => (
-                  <option key={option.type} value={option.type}>{option.label}</option>
-                ))}
-              </select>
-              <button type="button" className="secondary-button" onClick={addResourceLink}>
-                <Plus size={16} /> Add resource link
-              </button>
-            </div>
-          </div>
-
-          <div className="contact-option-list">
-            {values.links.map((link, index) => (
-              <div className="contact-option-row" key={`${link.type}-${index}`}>
-                <ContactLinkIcon type={link.type} />
-                <select value={link.type} onChange={(event) => updateResourceLink(index, { type: event.target.value as ContactLinkType })}>
-                  {contactLinkOptions.map((option) => (
-                    <option key={option.type} value={option.type}>{option.label}</option>
-                  ))}
-                </select>
-                <input value={link.label} onChange={(event) => updateResourceLink(index, { label: event.target.value })} placeholder="Label" />
-                <input value={link.url} onChange={(event) => updateResourceLink(index, { url: event.target.value })} placeholder="https://..." />
-                <button className="icon-button danger" type="button" onClick={() => removeResourceLink(index)} title="Remove resource link">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-            {values.links.length === 0 && <p className="empty">No resource links yet.</p>}
-          </div>
-        </div>
-
-        <button type="submit"><Plus size={16} /> {editing ? "Save resource" : "Create resource"}</button>
-        {error && <p className="error">{error}</p>}
-      </form>
-    </section>
+        <section className="card settings-card">
+          <div className="section-heading"><span>Homepage labels</span></div>
+          <label>
+            <span>Update section</span>
+            <input value={values.latestUpdateTitle} onChange={(event) => change("latestUpdateTitle", event.target.value)} />
+          </label>
+          <label>
+            <span>Petition section</span>
+            <input value={values.currentPetitionsTitle} onChange={(event) => change("currentPetitionsTitle", event.target.value)} />
+          </label>
+          <label>
+            <span>Contacts section</span>
+            <input value={values.contactSectionTitle} onChange={(event) => change("contactSectionTitle", event.target.value)} />
+          </label>
+        </section>
+      </div>
+    </form>
   );
 };
 
@@ -950,7 +1300,7 @@ const Dashboard = () => {
       ["Draft updates", data?.draftUpdates ?? 0],
       ["New messages", data?.newContactMessages ?? 0],
       ["Pending fan voices", data?.pendingFanMessages ?? 0],
-      ["Views, 7 days", data?.traffic7Days ?? 0]
+      ["Unique visitors, 7 days", data?.traffic7Days ?? 0]
     ],
     [data]
   );
@@ -1053,29 +1403,37 @@ const Traffic = () => {
     <section className="admin-panel traffic-panel">
       <div className="metric-grid">
         <article className="card metric-card">
-          <span><BarChart3 size={16} /> Views, 30 days</span>
-          <strong>{data?.totalViews ?? 0}</strong>
+          <span><UserCheck size={16} /> Unique today</span>
+          <strong>{data?.todayVisitors ?? 0}</strong>
         </article>
         <article className="card metric-card">
-          <span><UserCheck size={16} /> Visitors, 30 days</span>
-          <strong>{data?.totalVisitors ?? 0}</strong>
+          <span><UserCheck size={16} /> Unique, 7 days</span>
+          <strong>{data?.visitors7Days ?? 0}</strong>
+        </article>
+        <article className="card metric-card">
+          <span><UserCheck size={16} /> Unique, 30 days</span>
+          <strong>{data?.visitors30Days ?? data?.totalVisitors ?? 0}</strong>
+        </article>
+        <article className="card metric-card">
+          <span><BarChart3 size={16} /> Page views, 30 days</span>
+          <strong>{data?.views30Days ?? data?.totalViews ?? 0}</strong>
         </article>
       </div>
 
       <div className="card traffic-table-card">
-        <h3>Top pages</h3>
+        <h3>Top pages by unique visitors</h3>
         <div className="admin-table traffic-table">
           <div className="admin-table-row admin-table-head">
             <span>Page</span>
+            <span>Unique</span>
             <span>Views</span>
-            <span>Visitors</span>
             <span>Last seen</span>
           </div>
           {(data?.byPath ?? []).map((item: any) => (
             <div className="admin-table-row" key={item.path}>
               <span>{item.path}</span>
-              <span>{item.views}</span>
               <span>{item.visitors}</span>
+              <span>{item.views}</span>
               <span>{item.lastSeenAt ? new Date(item.lastSeenAt).toLocaleString() : "Never"}</span>
             </div>
           ))}
@@ -1087,14 +1445,14 @@ const Traffic = () => {
         <div className="admin-table traffic-table compact">
           <div className="admin-table-row admin-table-head">
             <span>Date</span>
+            <span>Unique</span>
             <span>Views</span>
-            <span>Visitors</span>
           </div>
           {(data?.byDay ?? []).map((item: any) => (
             <div className="admin-table-row" key={item.dateKey}>
               <span>{item.dateKey}</span>
-              <span>{item.views}</span>
               <span>{item.visitors}</span>
+              <span>{item.views}</span>
             </div>
           ))}
         </div>
@@ -1166,6 +1524,9 @@ const Moderation = () => {
 
   const setStatus = async (id: string, status: string) => {
     await patchJson(`/api/admin/moderation/comments/${id}`, { status });
+    if (status === "deleted") {
+      setComments((current) => current.filter((comment) => comment._id !== id));
+    }
     await load();
   };
 
@@ -1185,6 +1546,7 @@ const Moderation = () => {
           </div>
         </article>
       ))}
+      {comments.length === 0 && <p className="empty">No comments need moderation.</p>}
     </section>
   );
 };
@@ -1246,6 +1608,11 @@ const Users = () => {
     () => (currentUser?.role === "owner" ? ["user", "moderator", "admin"] : ["user", "moderator"]),
     [currentUser?.role]
   );
+  const canManageUser = (item: AdminItem) => {
+    if (item._id === currentUser?._id || item.role === "owner") return false;
+    if (currentUser?.role === "owner") return true;
+    return currentUser?.role === "admin" && (item.role === "moderator" || item.role === "user");
+  };
 
   useEffect(() => {
     load();
@@ -1389,7 +1756,7 @@ const Users = () => {
 
       <div className="admin-list user-list">
         {filteredUsers.map((item) => {
-          const canEdit = item.role !== "owner" && item._id !== currentUser?._id;
+          const canEdit = canManageUser(item);
           return (
             <article className="card user-row" key={item._id}>
               <div className="user-identity">
@@ -1489,9 +1856,61 @@ const Users = () => {
   );
 };
 
+const adminTabGroups: Array<{
+  title: string;
+  tabs: Array<{ key: AdminTab; label: string; icon: LucideIcon; adminOnly?: boolean }>;
+}> = [
+  {
+    title: "Overview",
+    tabs: [
+      { key: "dashboard", label: "Dashboard", icon: Database },
+      { key: "site-copy", label: "Site Copy", icon: Home, adminOnly: true },
+      { key: "traffic", label: "Traffic", icon: BarChart3 }
+    ]
+  },
+  {
+    title: "Content",
+    tabs: [
+      { key: "updates", label: "Updates", icon: FileText },
+      { key: "petitions", label: "Petitions", icon: RefreshCw },
+      { key: "contacts", label: "Contacts", icon: Building2 },
+      { key: "resources", label: "Resources", icon: ExternalLink },
+      { key: "topics", label: "Community Topics", icon: MessageSquare }
+    ]
+  },
+  {
+    title: "Community",
+    tabs: [
+      { key: "moderation", label: "Moderation", icon: ShieldCheck },
+      { key: "fan-messages", label: "Fan Messages", icon: Heart },
+      { key: "contact-messages", label: "Inbox", icon: Mail },
+      { key: "contact-suggestions", label: "Contact Suggestions", icon: Plus }
+    ]
+  },
+  {
+    title: "Staff",
+    tabs: [
+      { key: "users", label: "Users", icon: UsersRound, adminOnly: true }
+    ]
+  }
+];
+
+const validAdminTabs = new Set<AdminTab>(adminTabGroups.flatMap((group) => group.tabs.map((tab) => tab.key)));
+const tabFromHash = (): AdminTab => {
+  if (typeof window === "undefined") return "dashboard";
+  const candidate = window.location.hash.replace(/^#/, "") as AdminTab;
+  return validAdminTabs.has(candidate) ? candidate : "dashboard";
+};
+
 export const AdminPage = () => {
   const { user, loading } = useAuth();
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState<AdminTab>(tabFromHash);
+
+  useEffect(() => {
+    const onHashChange = () => setTab(tabFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   if (loading) return <section className="page-section"><p className="empty">Checking access...</p></section>;
   if (!isStaff(user?.role)) {
@@ -1506,39 +1925,57 @@ export const AdminPage = () => {
     );
   }
 
-  const currentResource = resources.find((resource) => resource.key === tab);
+  const isAdminUser = user?.role === "admin" || user?.role === "owner";
+  const activeTab = !isAdminUser && (tab === "site-copy" || tab === "users") ? "dashboard" : tab;
+  const currentResource = resources.find((resource) => resource.key === activeTab);
+  const setAdminTab = (nextTab: AdminTab) => {
+    setTab(nextTab);
+    if (window.location.hash !== `#${nextTab}`) {
+      window.history.pushState(null, "", `#${nextTab}`);
+    }
+  };
 
   return (
     <section className="page-section admin-page">
+      <Seo title="Admin Tools" description="Save The Gate admin tools." path="/admin" noindex />
       <div className="page-title">
         <span><Database size={17} /> Admin</span>
         <h1>Admin Tools</h1>
         <p>Publish updates, track petitions, manage contact targets, moderate comments, and invite staff.</p>
       </div>
-      <div className="tab-row">
-        <button className={tab === "dashboard" ? "active" : ""} onClick={() => setTab("dashboard")}>Dashboard</button>
-        {resources.map((resource) => (
-          <button key={resource.key} className={tab === resource.key ? "active" : ""} onClick={() => setTab(resource.key)}>
-            {resource.title}
-          </button>
-        ))}
-        <button className={tab === "moderation" ? "active" : ""} onClick={() => setTab("moderation")}>Moderation</button>
-        <button className={tab === "fan-messages" ? "active" : ""} onClick={() => setTab("fan-messages")}>Fan Messages</button>
-        <button className={tab === "traffic" ? "active" : ""} onClick={() => setTab("traffic")}>Traffic</button>
-        <button className={tab === "contact-messages" ? "active" : ""} onClick={() => setTab("contact-messages")}>Inbox</button>
-        <button className={tab === "contact-suggestions" ? "active" : ""} onClick={() => setTab("contact-suggestions")}>Contact Suggestions</button>
-        <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users</button>
+      <div className="admin-layout">
+        <aside className="admin-sidebar" aria-label="Admin tools">
+          {adminTabGroups.map((group) => (
+            <div className="admin-nav-group" key={group.title}>
+              <span>{group.title}</span>
+              {group.tabs
+                .filter((entry) => !entry.adminOnly || isAdminUser)
+                .map((entry) => {
+                  const Icon = entry.icon;
+                  return (
+                    <button key={entry.key} className={activeTab === entry.key ? "active" : ""} onClick={() => setAdminTab(entry.key)} type="button">
+                      <Icon size={16} />
+                      {entry.label}
+                    </button>
+                  );
+                })}
+            </div>
+          ))}
+        </aside>
+        <div className="admin-tool-surface">
+          {activeTab === "dashboard" && <Dashboard />}
+          {activeTab === "site-copy" && <SiteCopyPanel />}
+          {activeTab === "contacts" && <ContactTargetsPanel />}
+          {activeTab === "resources" && <ResourcesPanel />}
+          {currentResource && activeTab !== "contacts" && activeTab !== "resources" && <CrudPanel resource={currentResource} />}
+          {activeTab === "moderation" && <Moderation />}
+          {activeTab === "fan-messages" && <FanMessages />}
+          {activeTab === "traffic" && <Traffic />}
+          {activeTab === "contact-messages" && <ContactMessages />}
+          {activeTab === "contact-suggestions" && <ContactSuggestions />}
+          {activeTab === "users" && <Users />}
+        </div>
       </div>
-      {tab === "dashboard" && <Dashboard />}
-      {tab === "contacts" && <ContactTargetsPanel />}
-      {tab === "resources" && <ResourcesPanel />}
-      {currentResource && tab !== "contacts" && tab !== "resources" && <CrudPanel resource={currentResource} />}
-      {tab === "moderation" && <Moderation />}
-      {tab === "fan-messages" && <FanMessages />}
-      {tab === "traffic" && <Traffic />}
-      {tab === "contact-messages" && <ContactMessages />}
-      {tab === "contact-suggestions" && <ContactSuggestions />}
-      {tab === "users" && <Users />}
     </section>
   );
 };
