@@ -227,6 +227,21 @@ export const trafficEventSchema = z.object({
   path: z.string().trim().min(1).max(180).regex(/^\/[A-Za-z0-9/_?.=&%#:+-]*$/)
 });
 
+export const clickEventSchema = z.object({
+  category: z.enum(["petition", "gofundme", "contact"]),
+  label: z.string().trim().min(1).max(180),
+  targetUrl: z.string().trim().min(1).max(800).refine((value) => {
+    if (value.startsWith("mailto:") || value.startsWith("tel:")) return true;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Expected https://, mailto:, or tel: link"),
+  sourcePath: z.string().trim().min(1).max(180).regex(/^\/[A-Za-z0-9/_?.=&%#:+-]*$/)
+});
+
 export const siteSettingsSchema = z.object({
   siteName: z.string().trim().min(2).max(80).default("Save The Gate"),
   navBrand: z.string().trim().min(2).max(80).default("Save The Gate"),

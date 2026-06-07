@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
 import {
   commentSchema,
+  clickEventSchema,
   contactMessageSchema,
   contactSuggestionSchema,
   fanMessageSchema,
@@ -14,6 +15,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { asyncRoute } from "../utils/asyncRoute.js";
 import { Comment } from "../models/Comment.js";
+import { ClickEvent } from "../models/ClickEvent.js";
 import { CommunityTopic } from "../models/CommunityTopic.js";
 import { ContactMessage } from "../models/ContactMessage.js";
 import { ContactTarget } from "../models/ContactTarget.js";
@@ -293,6 +295,30 @@ publicRouter.post(
         $inc: { views: 1 },
         $addToSet: { visitorHashes: visitorHash },
         $set: { lastSeenAt: new Date() }
+      },
+      { upsert: true }
+    );
+    res.status(204).send();
+  })
+);
+
+publicRouter.post(
+  "/clicks",
+  validateBody(clickEventSchema),
+  asyncRoute(async (req, res) => {
+    const visitorHash = hashIp(`${config.sessionSecret}:${req.ip ?? ""}:${req.get("user-agent") ?? ""}`);
+    await ClickEvent.updateOne(
+      {
+        dateKey: dayKey(),
+        category: req.body.category,
+        label: req.body.label,
+        targetUrl: req.body.targetUrl,
+        sourcePath: req.body.sourcePath
+      },
+      {
+        $inc: { clicks: 1 },
+        $addToSet: { visitorHashes: visitorHash },
+        $set: { lastClickedAt: new Date() }
       },
       { upsert: true }
     );

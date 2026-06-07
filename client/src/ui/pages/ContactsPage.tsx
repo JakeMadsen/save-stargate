@@ -19,8 +19,10 @@ import {
   Twitter,
   Youtube
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { api, postJson } from "../../api.js";
+import { outboundTrackingProps } from "../../tracking.js";
 import { PetitionCard, type Petition } from "../components.js";
 import { Seo } from "../Seo.js";
 
@@ -74,6 +76,15 @@ const linkIcons = {
   other: ExternalLink
 };
 
+const TrackedContactInlineLink = ({ href, label, children }: { href: string; label: string; children: ReactNode }) => (
+  <a
+    href={href}
+    {...outboundTrackingProps({ category: "contact", label, targetUrl: href })}
+  >
+    {children}
+  </a>
+);
+
 const amazonOutreachOptions = [
   {
     title: "Share and hashtag",
@@ -105,8 +116,8 @@ const amazonOutreachOptions = [
     icon: PhoneCall,
     body: "This suggestion comes from fan outreach around Michael Shanks. Call the studio to respectfully register your request.",
     items: [
-      <><strong>MGM Studios toll-free:</strong> <a href="tel:+18883649521">(888) 364-9521</a></>,
-      <><strong>Culver Studios facility:</strong> <a href="tel:+13102021234">(310) 202-1234</a></>,
+      <><strong>MGM Studios toll-free:</strong> <TrackedContactInlineLink href="tel:+18883649521" label="MGM Studios toll-free">(888) 364-9521</TrackedContactInlineLink></>,
+      <><strong>Culver Studios facility:</strong> <TrackedContactInlineLink href="tel:+13102021234" label="Culver Studios facility">(310) 202-1234</TrackedContactInlineLink></>,
       <><strong>Tell them why:</strong> let them know respectfully that you want the Gero-led Stargate project to continue.</>
     ]
   },
@@ -121,6 +132,8 @@ const amazonOutreachOptions = [
     ]
   }
 ];
+
+const campaignFundraiserUrl = "https://www.gofundme.com/f/savestargate-dont-close-the-gate";
 
 const fallbackLinks = (contact: Contact): ContactLink[] => {
   if (contact.links?.length) return contact.links;
@@ -164,7 +177,18 @@ const ContactCard = ({ contact }: { contact: Contact }) => {
         {links.map((link) => {
           const Icon = linkIcons[link.type] ?? ExternalLink;
           return (
-            <a className={`contact-link ${link.type}`} key={`${link.type}-${link.url}`} href={link.url} target="_blank" rel="noreferrer">
+            <a
+              className={`contact-link ${link.type}`}
+              key={`${link.type}-${link.url}`}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
+              {...outboundTrackingProps({
+                category: "contact",
+                label: `${contact.name}: ${link.label}`,
+                targetUrl: link.url
+              })}
+            >
               <span className="contact-link-icon">
                 <Icon size={16} />
               </span>
@@ -344,6 +368,32 @@ export const ContactsPage = () => {
           {petitions.map((petition) => <PetitionCard key={petition._id} petition={petition} />)}
           {petitions.length === 0 && <p className="empty">No petitions listed yet.</p>}
         </div>
+        <div className="card fundraiser-callout">
+          <div>
+            <div className="card-kicker">Fan fundraiser</div>
+            <h3>Help fund Save Stargate outreach</h3>
+            <p>
+              There is also a fan-run GoFundMe for the Save Stargate effort. Share it or chip in if you want to help
+              cover campaign visibility and organizing costs.
+            </p>
+          </div>
+          <div className="card-action-note">
+            <a
+              className="text-link"
+              href={campaignFundraiserUrl}
+              target="_blank"
+              rel="noreferrer"
+              {...outboundTrackingProps({
+                category: "gofundme",
+                label: "SaveStargate GoFundMe",
+                targetUrl: campaignFundraiserUrl
+              })}
+            >
+              Open GoFundMe <ExternalLink size={14} />
+            </a>
+            <p className="affiliation-note">This site is not affiliated with this GoFundMe fundraiser.</p>
+          </div>
+        </div>
       </section>
 
       <section className="help-block" id="reach-amazon">
@@ -392,13 +442,18 @@ export const ContactsPage = () => {
                     {"actions" in option && option.actions && (
                       <div className="button-row">
                         {option.actions.map((action) => (
-                          <a
-                            className="secondary-button small"
-                            href={action.href}
-                            key={action.href}
-                            target={action.href.startsWith("http") ? "_blank" : undefined}
-                            rel={action.href.startsWith("http") ? "noreferrer" : undefined}
-                          >
+                        <a
+                          className="secondary-button small"
+                          href={action.href}
+                          key={action.href}
+                          target={action.href.startsWith("http") ? "_blank" : undefined}
+                          rel={action.href.startsWith("http") ? "noreferrer" : undefined}
+                          {...outboundTrackingProps({
+                            category: "contact",
+                            label: action.label,
+                            targetUrl: action.href
+                          })}
+                        >
                             {action.label} <ExternalLink size={14} />
                           </a>
                         ))}

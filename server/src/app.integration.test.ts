@@ -232,6 +232,32 @@ describe("app integration", () => {
     expect(traffic.body.byPath.some((item: any) => item.path === "/fan-messages")).toBe(true);
   });
 
+  it("tracks outbound clicks for admins", async () => {
+    await User.create({
+      email: "click-owner@example.com",
+      role: "owner",
+      status: "active",
+      passwordHash: await hashPassword("owner-password-123")
+    });
+
+    await request(app)
+      .post("/api/public/clicks")
+      .send({
+        category: "gofundme",
+        label: "SaveStargate GoFundMe",
+        targetUrl: "https://www.gofundme.com/f/savestargate-dont-close-the-gate",
+        sourcePath: "/"
+      })
+      .expect(204);
+
+    const agent = request.agent(app);
+    await agent.post("/api/auth/login").send({ email: "click-owner@example.com", password: "owner-password-123" }).expect(200);
+    const traffic = await agent.get("/api/admin/traffic").expect(200);
+
+    expect(traffic.body.clicks30Days).toBeGreaterThanOrEqual(1);
+    expect(traffic.body.byClickTarget.some((item: any) => item.label === "SaveStargate GoFundMe")).toBe(true);
+  });
+
   it("lets admins delete user accounts", async () => {
     const owner = await User.create({
       email: "delete-owner@example.com",

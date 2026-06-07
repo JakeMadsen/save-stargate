@@ -31,6 +31,7 @@ import { isEmailConfigured, sendTestEmail, verifyEmailSettings } from "../servic
 import { isProduction } from "../config.js";
 import { syncOnePetition } from "../services/petitionSync.js";
 import { Comment } from "../models/Comment.js";
+import { ClickEvent } from "../models/ClickEvent.js";
 import { CommunityTopic } from "../models/CommunityTopic.js";
 import { ContactMessage } from "../models/ContactMessage.js";
 import { ContactTarget } from "../models/ContactTarget.js";
@@ -212,7 +213,10 @@ adminRouter.get(
     const today = new Date().toISOString().slice(0, 10);
     const since7 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString().slice(0, 10);
     const since30 = new Date(Date.now() - 1000 * 60 * 60 * 24 * 29).toISOString().slice(0, 10);
-    const docs = await SiteTraffic.find({ dateKey: { $gte: since30 } }).sort({ dateKey: -1, views: -1 }).lean();
+    const [docs, clickDocs] = await Promise.all([
+      SiteTraffic.find({ dateKey: { $gte: since30 } }).sort({ dateKey: -1, views: -1 }).lean(),
+      ClickEvent.find({ dateKey: { $gte: since30 } }).sort({ dateKey: -1, clicks: -1 }).lean()
+    ]);
     const collectVisitors = (items: typeof docs) => {
       const visitors = new Set<string>();
       for (const item of items) {
@@ -253,6 +257,44 @@ adminRouter.get(
       .map((item) => ({ path: item.path, views: item.views, visitors: item.visitors.size, lastSeenAt: item.lastSeenAt }))
       .sort((left, right) => right.visitors - left.visitors || right.views - left.views)
       .slice(0, 20);
+    const clickTotals = clickDocs.reduce(
+      (acc, item) => {
+        acc.clicks += item.clicks ?? 0;
+        for (const visitor of item.visitorHashes ?? []) acc.visitors.add(visitor);
+        return acc;
+      },
+      { clicks: 0, visitors: new Set<string>() }
+    );
+    const byClickTarget = [...clickDocs.reduce((map, item) => {
+      const key = `${item.category}|${item.label}|${item.targetUrl}`;
+      const lastClickedAt = item.lastClickedAt ? new Date(item.lastClickedAt) : undefined;
+      const current = map.get(key) ?? {
+        category: item.category,
+        label: item.label,
+        targetUrl: item.targetUrl,
+        clicks: 0,
+        visitors: new Set<string>(),
+        sources: new Set<string>(),
+        lastClickedAt
+      };
+      current.clicks += item.clicks ?? 0;
+      current.sources.add(item.sourcePath);
+      for (const visitor of item.visitorHashes ?? []) current.visitors.add(visitor);
+      if (!current.lastClickedAt || (lastClickedAt && lastClickedAt > current.lastClickedAt)) current.lastClickedAt = lastClickedAt;
+      map.set(key, current);
+      return map;
+    }, new Map<string, { category: string; label: string; targetUrl: string; clicks: number; visitors: Set<string>; sources: Set<string>; lastClickedAt?: Date }>()).values()]
+      .map((item) => ({
+        category: item.category,
+        label: item.label,
+        targetUrl: item.targetUrl,
+        clicks: item.clicks,
+        visitors: item.visitors.size,
+        sources: [...item.sources].sort(),
+        lastClickedAt: item.lastClickedAt
+      }))
+      .sort((left, right) => right.clicks - left.clicks || right.visitors - left.visitors)
+      .slice(0, 30);
 
     res.json({
       todayVisitors: todayVisitors.size,
@@ -261,8 +303,11 @@ adminRouter.get(
       views30Days: totals.views,
       totalViews: totals.views,
       totalVisitors: totals.visitors.size,
+      clicks30Days: clickTotals.clicks,
+      clickVisitors30Days: clickTotals.visitors.size,
       byDay,
-      byPath
+      byPath,
+      byClickTarget
     });
   })
 );

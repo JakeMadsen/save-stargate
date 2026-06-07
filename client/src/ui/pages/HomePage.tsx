@@ -1,8 +1,9 @@
-import { ArrowRight, ChevronLeft, ChevronRight, Heart, Mail, Megaphone, Sparkles, Target, Users } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Heart, Mail, Megaphone, Sparkles, Target, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api.js";
 import heroImage from "../../assets/banner.jpg";
+import { outboundTrackingProps } from "../../tracking.js";
 import { FeaturedUpdateCard, PetitionCard, type Petition, type UpdatePost } from "../components.js";
 import { Seo } from "../Seo.js";
 
@@ -74,6 +75,8 @@ const defaultHomeSettings: HomeSettings = {
 };
 
 const contactAnchor = (contact: { _id: string }) => `/contacts#contact-${contact._id}`;
+const campaignFundraiserUrl = "https://www.gofundme.com/f/savestargate-dont-close-the-gate";
+const campaignFundraiserImage = "https://d2g8igdw686xgo.cloudfront.net/104558079_1780526554957987_r.png";
 
 const FanVoiceCarousel = ({ messages }: { messages: NonNullable<HomeData["fanMessages"]> }) => {
   const [index, setIndex] = useState(0);
@@ -235,6 +238,35 @@ export const HomePage = () => {
             {(data?.petitions ?? []).map((petition) => <PetitionCard key={petition._id} petition={petition} />)}
           </div>
         </aside>
+      </section>
+
+      <section className="content-band home-fundraiser-section">
+        <div className="card home-fundraiser-card">
+          <img src={campaignFundraiserImage} alt="#SaveStargate banner plane" loading="lazy" />
+          <div>
+            <div className="card-kicker">Fan fundraiser</div>
+            <h2>Support the Save Stargate campaign</h2>
+            <p>
+              Fans are raising money for public awareness efforts, including banner flights and other campaign visibility.
+            </p>
+            <div className="card-action-note">
+              <a
+                className="text-link"
+                href={campaignFundraiserUrl}
+                target="_blank"
+                rel="noreferrer"
+                {...outboundTrackingProps({
+                  category: "gofundme",
+                  label: "SaveStargate GoFundMe",
+                  targetUrl: campaignFundraiserUrl
+                })}
+              >
+                Open GoFundMe <ExternalLink size={14} />
+              </a>
+              <p className="affiliation-note">This site is not affiliated with this GoFundMe fundraiser.</p>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="content-band">

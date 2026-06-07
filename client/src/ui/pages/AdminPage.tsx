@@ -16,6 +16,7 @@ import {
   Mail,
   MapPin,
   MessageSquare,
+  MousePointerClick,
   Music2,
   Plus,
   RefreshCw,
@@ -1418,6 +1419,41 @@ const Traffic = () => {
           <span><BarChart3 size={16} /> Page views, 30 days</span>
           <strong>{data?.views30Days ?? data?.totalViews ?? 0}</strong>
         </article>
+        <article className="card metric-card">
+          <span><MousePointerClick size={16} /> Link clicks, 30 days</span>
+          <strong>{data?.clicks30Days ?? 0}</strong>
+        </article>
+        <article className="card metric-card">
+          <span><MousePointerClick size={16} /> Unique clickers, 30 days</span>
+          <strong>{data?.clickVisitors30Days ?? 0}</strong>
+        </article>
+      </div>
+
+      <div className="card traffic-table-card">
+        <h3>Top outbound clicks</h3>
+        <div className="admin-table traffic-click-table">
+          <div className="admin-table-row admin-table-head">
+            <span>Target</span>
+            <span>Type</span>
+            <span>Clicks</span>
+            <span>Unique</span>
+            <span>Sources</span>
+            <span>Last click</span>
+          </div>
+          {(data?.byClickTarget ?? []).map((item: any) => (
+            <div className="admin-table-row" key={`${item.category}-${item.label}-${item.targetUrl}`}>
+              <span>
+                <strong>{item.label}</strong>
+                <small>{item.targetUrl}</small>
+              </span>
+              <span>{item.category}</span>
+              <span>{item.clicks}</span>
+              <span>{item.visitors}</span>
+              <span>{(item.sources ?? []).join(", ")}</span>
+              <span>{item.lastClickedAt ? new Date(item.lastClickedAt).toLocaleString() : "Never"}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="card traffic-table-card">

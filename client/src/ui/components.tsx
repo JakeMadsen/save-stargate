@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, ExternalLink, Flag, MessageSquare } from "lu
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { patchJson, postJson } from "../api.js";
+import { outboundTrackingProps } from "../tracking.js";
 import { isStaff, useAuth } from "./AuthContext.js";
 
 export type Petition = {
@@ -88,9 +89,18 @@ export const PetitionCard = ({ petition }: { petition: Petition }) => (
         {petition.latestUpdateBody && <p>{petition.latestUpdateBody}</p>}
       </div>
     )}
-    <a className="text-link" href={petition.url} target="_blank" rel="noreferrer">
-      Open petition <ExternalLink size={14} />
-    </a>
+    <div className="card-action-note">
+      <a
+        className="text-link"
+        href={petition.url}
+        target="_blank"
+        rel="noreferrer"
+        {...outboundTrackingProps({ category: "petition", label: petition.title, targetUrl: petition.url })}
+      >
+        Open petition <ExternalLink size={14} />
+      </a>
+      <p className="affiliation-note">This site is not affiliated with this petition or petition platform.</p>
+    </div>
   </article>
 );
 

@@ -28,10 +28,10 @@ const Shell = () => {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [settings, setSettings] = useState<ShellSettings>(defaultShellSettings);
   const nav = [
-    ["Updates", "/updates"],
     ["Take Action", "/contacts"],
-    ["Community", "/community"],
     ["Fan Voices", "/fan-messages"],
+    ["Updates", "/updates"],
+    ["Community", "/community"],
     ["Resources", "/resources"],
     ["Write Us", "/write-us"]
   ];

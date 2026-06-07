@@ -483,6 +483,7 @@ blockquote {
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
   gap: 1.3rem;
   align-items: stretch;
+  padding-bottom: 1.25rem;
 }
 
 .home-update-panel,
@@ -498,6 +499,66 @@ blockquote {
 
 .home-petition-panel .petition-card {
   height: 100%;
+}
+
+.home-fundraiser-section {
+  padding-top: 0;
+  padding-bottom: 1.25rem;
+}
+
+.home-fundraiser-section + .content-band {
+  padding-top: 0.75rem;
+}
+
+.home-fundraiser-card {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1fr);
+  gap: 1.2rem;
+  align-items: center;
+  padding: 1rem;
+}
+
+.home-fundraiser-card img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.home-fundraiser-card h2 {
+  margin: 0.25rem 0 0.55rem;
+}
+
+.home-fundraiser-card p {
+  max-width: 720px;
+  margin-bottom: 0.75rem;
+}
+
+.home-fundraiser-card > div {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
+.affiliation-note {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.card-action-note {
+  display: grid;
+  justify-items: end;
+  align-self: end;
+  margin-top: auto;
+  text-align: right;
+}
+
+.card-action-note .text-link {
+  justify-content: flex-end;
 }
 
 .section-grid {
@@ -632,12 +693,17 @@ blockquote {
 .petition-card {
   display: grid;
   gap: 0.65rem;
+  align-content: start;
 }
 
 .petition-card h3,
 .clickable-card h3,
 .contact-card h3 {
   margin-bottom: 0.25rem;
+}
+
+.petition-card .card-action-note {
+  margin-top: auto;
 }
 
 .petition-card-image {
@@ -929,6 +995,20 @@ blockquote {
 
 .help-petition-grid .petition-card {
   height: 100%;
+}
+
+.fundraiser-callout {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.fundraiser-callout h3,
+.fundraiser-callout p {
+  margin-bottom: 0;
 }
 
 .outreach-playbook {
@@ -1766,6 +1846,16 @@ blockquote {
   gap: 1rem;
 }
 
+.traffic-click-table .admin-table-row {
+  grid-template-columns: minmax(220px, 1fr) 90px 80px 80px minmax(150px, 0.75fr) minmax(140px, 0.75fr);
+}
+
+.traffic-click-table small {
+  display: block;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
 .admin-table {
   display: grid;
   gap: 0.4rem;
@@ -2115,6 +2205,7 @@ blockquote {
   .contact-cta-band,
   .help-hero,
   .outreach-playbook,
+  .home-fundraiser-card,
   .home-priority-grid,
   .section-grid,
   .admin-grid,
@@ -2138,6 +2229,11 @@ blockquote {
   }
 
   .suggestion-callout {
+    flex-direction: column;
+  }
+
+  .fundraiser-callout {
+    align-items: flex-start;
     flex-direction: column;
   }
 
