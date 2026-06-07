@@ -29,8 +29,7 @@ const Shell = () => {
   const [settings, setSettings] = useState<ShellSettings>(defaultShellSettings);
   const nav = [
     ["Updates", "/updates"],
-    ["Petitions", "/petitions"],
-    ["Contacts", "/contacts"],
+    ["Take Action", "/contacts"],
     ["Community", "/community"],
     ["Fan Voices", "/fan-messages"],
     ["Resources", "/resources"],

@@ -50,14 +50,14 @@ const defaultHomeSettings: HomeSettings = {
   heroEyebrow: "Stargate fans are organizing",
   heroTitle: "Save The Gate",
   heroBody: "Amazon is walking away from new Stargate before it even gets a chance. Sign the petition, use the contact list, and help show there is still an audience here.",
-  heroPrimaryLabel: "Sign the petitions",
-  heroPrimaryPath: "/petitions",
+  heroPrimaryLabel: "Take action",
+  heroPrimaryPath: "/contacts",
   heroSecondaryLabel: "Join the discussion",
   heroSecondaryPath: "/community",
   actionOneTitle: "Watch the numbers",
-  actionOneBody: "Live petition counts and older fan campaigns in one place.",
-  actionTwoTitle: "Find contacts",
-  actionTwoBody: "Public company profiles, work emails, and professional links.",
+  actionOneBody: "Live petition counts and older fan campaigns in one campaign flow.",
+  actionTwoTitle: "Reach Amazon",
+  actionTwoBody: "Support, studio phone lines, email, social channels, and public contacts.",
   actionThreeTitle: "Follow updates",
   actionThreeBody: "New posts, contact changes, and useful next steps.",
   campaignProducerNames: ["Martin Gero", "Brad Wright", "Joseph Mallozzi"],
@@ -229,7 +229,7 @@ export const HomePage = () => {
         <aside className="home-petition-panel">
           <div className="section-heading">
             <span>{settings.currentPetitionsTitle}</span>
-            <Link to="/petitions">View all</Link>
+            <Link to="/contacts#petitions">View all</Link>
           </div>
           <div className="card-grid">
             {(data?.petitions ?? []).map((petition) => <PetitionCard key={petition._id} petition={petition} />)}
@@ -240,7 +240,7 @@ export const HomePage = () => {
       <section className="content-band">
         <div className="section-heading">
           <span>{settings.contactSectionTitle}</span>
-          <Link to="/contacts">Full list</Link>
+          <Link to="/contacts#contact-directory">Full list</Link>
         </div>
         <div className="card-grid three">
           {(data?.contacts ?? []).map((contact) => (
